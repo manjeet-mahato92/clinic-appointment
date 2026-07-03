@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Layout from '../components/Layout.jsx';
 import { hospitalNav } from '../navConfigs.js';
 import api from '../api/client.js';
-import { STATES, DISTRICTS } from '../utils/locations.js';
+import { STATES, LOCATIONS } from '../utils/locations.js';
 
 export default function HospitalProfile() {
   const [form, setForm] = useState(null);

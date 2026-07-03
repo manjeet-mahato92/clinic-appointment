@@ -4,7 +4,7 @@ import Layout from '../components/Layout.jsx';
 import Modal from '../components/Modal.jsx';
 import { hospitalNav } from '../navConfigs.js';
 import api from '../api/client.js';
-import { STATES, DISTRICTS } from '../utils/locations.js';
+import { STATES, LOCATIONS } from '../utils/locations.js';
 
 const EMPTY_FORM = {
   doctor_name: '', speciality: '', contact_number: '', email: '', password: '', avg_minutes_per_patient: 15,
