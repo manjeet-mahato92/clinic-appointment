@@ -223,7 +223,9 @@ export default function HospitalDoctors() {
               <label className="label">District</label>
               <select className="input" value={form.district} onChange={set('district')}>
                 <option value="">Select district</option>
-                {DISTRICTS.map((district) => <option key={district} value={district}>{district}</option>)}
+                {(LOCATIONS[form.state] || []).map((district) => (
+                  <option key={district} value={district}>{district}</option>
+                ))}
               </select>
             </div>
             <div>

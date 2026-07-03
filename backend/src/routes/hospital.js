@@ -140,7 +140,7 @@ router.post('/patients', (req, res) => {
   const id = uuid();
   db.prepare(
     `INSERT INTO patients (id, hospital_id, patient_name, contact_number, email, address, whatsapp_available,
-      adhar_card, age, gender, city, state, pincode)
+      adhar_card, age, gender, district, state, pincode)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id, hid(req), patient_name, contact_number, email || null, address || null, whatsapp_available ? 1 : 0,

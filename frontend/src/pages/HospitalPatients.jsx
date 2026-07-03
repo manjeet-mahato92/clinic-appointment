@@ -4,77 +4,7 @@ import Layout from '../components/Layout.jsx';
 import Modal from '../components/Modal.jsx';
 import { hospitalNav } from '../navConfigs.js';
 import api from '../api/client.js';
-
-const STATES = [
-  'Andhra Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Delhi', 'Gujarat', 'Haryana',
-  'Karnataka', 'Kerala', 'Maharashtra', 'Odisha', 'Punjab', 'Rajasthan', 'Tamil Nadu',
-  'Telangana', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
-];
-
-const DISTRICTS = [
-  'Adilabad', 'Agra', 'Ahmednagar', 'Ahmedabad', 'Aizawl', 'Alappuzha', 'Aligarh', 'Alirajpur',
-  'Almora', 'Alwar', 'Amaravati', 'Amethi', 'Amnour', 'Amravati', 'Amreli', 'Amritsar', 'Anand',
-  'Anantapur', 'Anantnag', 'Angul', 'Araria', 'Arwal', 'Ashok Nagar', 'Auraiya', 'Aurangabad',
-  'Azamgarh', 'Badgam', 'Bagalkot', 'Baghpat', 'Bahraich', 'Baksa', 'Balaghat',
-  'Balangir', 'Balasore', 'Ballia', 'Baloda Bazar', 'Balrampur', 'Banaskantha', 'Banda',
-  'Bandipora', 'Bangalore Rural', 'Bangalore Urban', 'Bankura', 'Banswara', 'Barabanki',
-  'Baramulla', 'Baran', 'Bareilly', 'Barmer', 'Barnala', 'Barpeta',
-  'Bastar', 'Basti', 'Bathinda', 'Beed', 'Begusarai', 'Belagavi', 'Bellary',
-  'Betul', 'Bhadohi', 'Bhadradri Kothagudem', 'Bhagalpur', 'Bhandara', 'Bharatpur',
-  'Bharuch', 'Bhavnagar', 'Bhilai', 'Bhilwara', 'Bhojpur', 'Bidar', 'Bijnor', 'Bikaner',
-  'Birbhum', 'Bishnupur', 'Bokaro', 'Bulandshahr', 'Buxar', 'Chamarajanagar',
-  'Chamba', 'Chamoli', 'Champawat', 'Chandauli', 'Chandel', 'Chandigarh', 'Chandrapur',
-  'Changlang', 'Chatra', 'Chennai', 'Chhatarpur', 'Chhindwara', 'Chikkaballapur',
-  'Chikkamagaluru', 'Chirang', 'Chitradurga', 'Chitrakoot', 'Chittoor', 'Churu',
-  'Coimbatore', 'Cooch Behar', 'Cuddalore', 'Cuttack', 'Dadra and Nagar Haveli',
-  'Daman', 'Dantewada', 'Darbhanga', 'Darjeeling', 'Darrang', 'Datia', 'Dehradun',
-  'Deoghar', 'Dewas', 'Dhubri', 'Dhule', 'Dibang Valley', 'Dibrugarh', 'Dindigul',
-  'Dindori', 'Dimapur', 'Diu', 'Doda', 'East Champaran', 'East Delhi', 'East Godavari',
-  'East Khasi Hills', 'East Siang', 'East Sikkim', 'East Singhbhum', 'Erode',
-  'Faridabad', 'Faridkot', 'Farrukhabad', 'Fatehgarh Sahib', 'Fatehpur', 'Fazilka',
-  'Firozabad', 'Gadag', 'Ganderbal', 'Ganjam', 'Gaya', 'Giridih', 'Godda', 'Golaghat',
-  'Gonda', 'Gorakhpur', 'Gulbarga', 'Gumla', 'Gurdaspur', 'Gurgaon', 'Gwalior',
-  'Hajipur', 'Hamirpur', 'Harda', 'Hassan', 'Hathras', 'Haveri', 'Hazaribagh', 'Hingoli',
-  'Hooghly', 'Hoshangabad', 'Hoshiarpur', 'Howrah', 'Hyderabad', 'Idukki',
-  'Imphal East', 'Imphal West', 'Indore', 'Jabalpur', 'Jagatsinghpur', 'Jaipur',
-  'Jalandhar', 'Jalgaon', 'Jalna', 'Jamtara', 'Janjgir-Champa', 'Jashpur', 'Jaunpur',
-  'Jehanabad', 'Jhabua', 'Jharsuguda', 'Jhansi', 'Jhunjhunu', 'Jind', 'Jodhpur',
-  'Jorhat', 'Junagadh', 'Kadapa', 'Kaimur', 'Kanchipuram', 'Kandhamal', 'Kangra',
-  'Kanyakumari', 'Kapurthala', 'Karaikal', 'Kargil', 'Karimganj', 'Karimnagar',
-  'Karnal', 'Karur', 'Kasaragod', 'Kathua', 'Katihar', 'Katni', 'Kendrapara',
-  'Kendujhar', 'Khagaria', 'Khammam', 'Khandwa', 'Khargone', 'Kheda', 'Kinnaur',
-  'Koderma', 'Kohima', 'Kolasib', 'Kolhapur', 'Kolkata', 'Kollam', 'Koppal',
-  'Kosi', 'Kota', 'Kothagudem', 'Kozhikode', 'Krishna', 'Kulgam', 'Kupwara',
-  'Kurnool', 'Kurukshetra', 'Kushinagar', 'Lahaul and Spiti', 'Lakhimpur',
-  'Lakhimpur Kheri', 'Lalitpur', 'Landour', 'Latehar', 'Latur', 'Leh', 'Lohardaga',
-  'Lonavala', 'Ludhiana', 'Madhepura', 'Madurai', 'Maharajganj', 'Mahasamund',
-  'Mahbubnagar', 'Mahe', 'Mainpuri', 'Malappuram', 'Mandi', 'Mangaluru', 'Mansa',
-  'Mathura', 'Mayiladuthurai', 'Medak', 'Meerut', 'Mehsana', 'Mirzapur', 'Moga',
-  'Moradabad', 'Morbi', 'Mormugao', 'Morigaon', 'Muzaffarpur', 'Mumbai', 'Munger',
-  'Murshidabad', 'Muzaffarnagar', 'Mysore', 'Nabarangpur', 'Nadia', 'Nagaon',
-  'Nagapattinam', 'Nagaur', 'Nalgonda', 'Nainital', 'Nanded', 'Nandurbar',
-  'Narsinghpur', 'Narayanpet', 'Narnaul', 'Nashik', 'Navsari', 'Nawada', 'Neemuch',
-  'Nellore', 'Nizamabad', 'North Goa', 'North Sikkim', 'Nuapada', 'Ongole',
-  'Palakkad', 'Pali', 'Palwal', 'Panaji', 'Panchkula', 'Panipat', 'Parbhani',
-  'Patan', 'Pathankot', 'Pathanamthitta', 'Patiala', 'Patna', 'Pauri Garhwal',
-  'Pilibhit', 'Pondicherry', 'Pratapgarh', 'Prayagraj', 'Pudukkottai', 'Pulwama',
-  'Pune', 'Purba Bardhaman', 'Puri', 'Purulia', 'Raebareli', 'Raichur', 'Raigarh',
-  'Raigad', 'Rajkot', 'Rajnandgaon', 'Ramanagara', 'Ramanathapuram', 'Ramban',
-  'Rampur', 'Ranchi', 'Ratia', 'Ratlam', 'Rayagada', 'Reasi', 'Rewa', 'Rohtak',
-  'Rohtas', 'Rudraprayag', 'Sagar', 'Saharanpur', 'Saharsa', 'Sahibganj', 'Sikar',
-  'Siliguri', 'Simdega', 'Sindhudurg', 'Singrauli', 'Sitamarhi', 'Sitapur',
-  'Sivaganga', 'Siwan', 'Solan', 'Solapur', 'Sonipat', 'Sonitpur', 'Sri Ganganagar',
-  'Srinagar', 'Sultanpur', 'Sundergarh', 'Supaul', 'Surat', 'Surendranagar', 'Tawang',
-  'Tehri Garhwal', 'Thane', 'Thanjavur', 'Theni', 'Thiruvallur', 'Thiruvananthapuram',
-  'Thrissur', 'Tikamgarh', 'Tinsukia', 'Tirap', 'Tiruchirappalli', 'Tirunelveli',
-  'Tiruppur', 'Tiruvallur', 'Tiruvannamalai', 'Tiruvarur', 'Tuticorin', 'Udaipur',
-  'Udalguri', 'Udham Singh Nagar', 'Udupi', 'Ujjain', 'Ukhrul', 'Una', 'Unnao',
-  'Upper Siang', 'Uttar Dinajpur', 'Uttarkashi', 'Vadodara', 'Vaishali', 'Valsad',
-  'Varanasi', 'Vellore', 'Vidisha', 'Viluppuram', 'Virudhunagar', 'Visakhapatnam',
-  'Vizianagaram', 'Wayanad', 'West Champaran', 'West Delhi', 'West Godavari',
-  'West Kameng', 'West Khasi Hills', 'West Siang', 'West Singhbhum', 'West Sikkim',
-  'Yadgir', 'Yamuna Nagar', 'Yanam', 'Yavatmal', 'Yercaud', 'Zunheboto',
-];
+import { STATES, LOCATIONS } from '../utils/locations.js';
 
 const EMPTY_FORM = {
   patient_name: '', contact_number: '', email: '', address: '', whatsapp_available: false,
@@ -331,7 +261,9 @@ export default function HospitalPatients() {
               <label className="label">District</label>
               <select className="input" value={form.district} onChange={set('district')}>
                 <option value="">Select district</option>
-                {DISTRICTS.map((district) => <option key={district} value={district}>{district}</option>)}
+                {(LOCATIONS[form.state] || []).map((district) => (
+                  <option key={district} value={district}>{district}</option>
+                ))}
               </select>
             </div>
             <div>
