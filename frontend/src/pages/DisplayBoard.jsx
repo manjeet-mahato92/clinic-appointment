@@ -56,7 +56,7 @@ export default function DisplayBoard() {
       <main className="px-8 py-6">
         <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
           <div className="grid gap-5">
-             <div className="text-black/75 text-2xl font-bold">{doctor.doctor_name} · {hospital.timing}</div>
+             <div className="text-black/75 text-2xl font-bold">{doctor.doctor_name} · {doctor.speciality} · {hospital.timing}</div>
             <div className="card p-6 bg-blue-800 text-white">
               <div className="text-lg text-white p-2 font-bold uppercase tracking-wide text-white mb-3">Current Appointment</div>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center">

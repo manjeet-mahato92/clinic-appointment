@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client.js';
-
+import { useMemo } from 'react';
 const EMPTY_FORM = {
   hospital_id: '', doctor_id: '', appointment_date: new Date().toISOString().slice(0, 10),
-  patient_name: '', contact_number: '', email: '', address: '', whatsapp_available: false,
+  patient_name: '', contact_number: '', email: '', address: '', whatsapp_available: false, timeslot: '',
 };
 
 export default function PatientBooking() {
@@ -21,8 +21,26 @@ export default function PatientBooking() {
 
   useEffect(() => {
     if (!form.hospital_id) { setDoctors([]); return; }
-    api.get(`/public/hospitals/${form.hospital_id}/doctors`).then((r) => setDoctors(r.data));
-  }, [form.hospital_id]);
+    api.get(`/public/hospitals/${form.hospital_id}/doctors`, { params: { date: form.appointment_date } }).then((r) => {
+      setDoctors(r.data);
+      // Reset doctor if the current one is not in the new list
+      if (form.doctor_id && !r.data.some(d => d.id === form.doctor_id)) {
+        setForm(f => ({ ...f, doctor_id: '', timeslot: '' }));
+      }
+    });
+  }, [form.hospital_id, form.appointment_date]);
+
+  const availableTimeslotsForSelectedDoctor = useMemo(() => {
+    if (!form.doctor_id) return [];
+    const doctor = doctors.find(d => d.id === form.doctor_id);
+    if (!doctor || !doctor.schedule?.is_available) return [];
+
+    return doctor.schedule.timeslots.map(slot => {
+      const { available, isFull } = slot;
+      return { slot: slot.slot, available, isFull };
+    });
+  }, [form.doctor_id, doctors]);
+
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: k === 'whatsapp_available' ? e.target.checked : e.target.value }));
 
@@ -68,13 +86,28 @@ export default function PatientBooking() {
           <div>
             <label className="label">Doctor</label>
             <select className="input" value={form.doctor_id} onChange={set('doctor_id')} required disabled={!doctors.length}>
-              <option value="">Select a doctor</option>
-              {doctors.map((d) => <option key={d.id} value={d.id}>{d.doctor_name} — {d.speciality}</option>)}
+              <option value="">Select an available doctor</option>
+              {doctors.filter(d => d.schedule?.is_available).map((d) => <option key={d.id} value={d.id}>{d.doctor_name} — {d.speciality}</option>)}
             </select>
           </div>
           <div>
             <label className="label">Appointment Date</label>
             <input type="date" className="input" value={form.appointment_date} onChange={set('appointment_date')} required />
+          </div>
+          <div>
+            <label className="label">Timeslot</label>
+            <select
+              className="input"
+              value={form.timeslot}
+              onChange={set('timeslot')}
+              required
+              disabled={!form.doctor_id || availableTimeslotsForSelectedDoctor.length === 0}
+            >
+              <option value="">Select a timeslot</option>
+              {availableTimeslotsForSelectedDoctor.map(({ slot, available, isFull }) => (
+                <option key={slot} value={slot} disabled={isFull}>{slot} ({available} slot{available === 1 ? '' : 's'} left)</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="label">Your Name</label>

@@ -42,12 +42,26 @@ router.patch('/profile', (req, res) => {
 // ---------- Manage Doctors ----------
 
 router.get('/doctors', (req, res) => {
-  res.json(
-    db.prepare(
-      `SELECT id, doctor_name, speciality, contact_number, email, age, gender, district, state, pincode, experience_years, certifications, avg_minutes_per_patient, status, created_at
-       FROM doctors WHERE hospital_id = ? ORDER BY created_at DESC`
-    ).all(hid(req))
-  );
+  const date = req.query.date || new Date().toISOString().slice(0, 10);
+  const doctors = db.prepare(
+    `SELECT id, doctor_name, speciality, contact_number, email, age, gender, district, state, pincode, experience_years, certifications, avg_minutes_per_patient, status, created_at
+     FROM doctors WHERE hospital_id = ? ORDER BY created_at DESC`
+  ).all(hid(req));
+
+  const doctorsWithSchedule = doctors.map(doctor => {
+    const schedule = db.prepare(
+      `SELECT is_available, timeslots FROM doctor_schedules WHERE doctor_id = ? AND date = ?`
+    ).get(doctor.id, date);
+    return {
+      ...doctor,
+      schedule: {
+        is_available: schedule?.is_available === 1,
+        timeslots: schedule?.timeslots ? JSON.parse(schedule.timeslots) : [],
+      }
+    };
+  });
+
+  res.json(doctorsWithSchedule);
 });
 
 router.post('/doctors', (req, res) => {
@@ -111,6 +125,30 @@ router.patch('/doctors/:id', (req, res) => {
 router.delete('/doctors/:id', (req, res) => {
   db.prepare('DELETE FROM doctors WHERE id = ? AND hospital_id = ?').run(req.params.id, hid(req));
   res.json({ message: 'Doctor removed' });
+});
+
+router.get('/doctors/:id/schedule', (req, res) => {
+  const date = req.query.date || new Date().toISOString().slice(0, 10);
+  const schedule = db.prepare(
+    `SELECT is_available, timeslots FROM doctor_schedules WHERE doctor_id = ? AND date = ? AND hospital_id = ?`
+  ).get(req.params.id, date, hid(req));
+
+  if (schedule) {
+    res.json({
+      is_available: schedule.is_available === 1,
+      timeslots: JSON.parse(schedule.timeslots || '[]'),
+    });
+  } else {
+    res.json({ is_available: false, timeslots: [] });
+  }
+});
+
+router.post('/doctors/:id/schedule', (req, res) => {
+  const date = req.body.date || new Date().toISOString().slice(0, 10);
+  const { is_available, timeslots } = req.body;
+  const timeslotsJson = JSON.stringify(timeslots || []);
+  db.prepare(`INSERT OR REPLACE INTO doctor_schedules (doctor_id, hospital_id, date, is_available, timeslots) VALUES (?, ?, ?, ?, ?)`).run(req.params.id, hid(req), date, is_available ? 1 : 0, timeslotsJson);
+  res.json({ message: 'Schedule updated' });
 });
 
 // ---------- Manage Patients ----------
@@ -220,19 +258,31 @@ router.get('/appointments', (req, res) => {
 
 // Create appointment -> auto-generates the next token number for that doctor/date
 router.post('/appointments', (req, res) => {
-  const { doctor_id, patient_id, appointment_date, notes } = req.body;
-  if (!doctor_id || !patient_id || !appointment_date) {
-    return res.status(400).json({ error: 'doctor_id, patient_id, and appointment_date are required' });
+  const { doctor_id, patient_id, appointment_date, notes, timeslot } = req.body;
+  if (!doctor_id || !patient_id || !appointment_date || !timeslot) {
+    return res.status(400).json({ error: 'doctor_id, patient_id, appointment_date, and timeslot are required' });
   }
-  const doctor = db.prepare('SELECT id FROM doctors WHERE id = ? AND hospital_id = ?').get(doctor_id, hid(req));
+  const doctor = db.prepare('SELECT id, avg_minutes_per_patient FROM doctors WHERE id = ? AND hospital_id = ?').get(doctor_id, hid(req));
   if (!doctor) return res.status(404).json({ error: 'Doctor not found in this hospital' });
+
+  const schedule = db.prepare('SELECT timeslots FROM doctor_schedules WHERE doctor_id = ? AND date = ? AND is_available = 1').get(doctor_id, appointment_date);
+  const availableTimeslots = schedule ? JSON.parse(schedule.timeslots) : [];
+  if (!availableTimeslots.includes(timeslot)) {
+    return res.status(400).json({ error: 'The selected timeslot is not available for this doctor on this date.' });
+  }
+
+  const maxAppointmentsInSlot = Math.floor(60 / (doctor.avg_minutes_per_patient || 15));
+  const existingAppointmentsInSlot = db.prepare('SELECT COUNT(*) as count FROM appointments WHERE doctor_id = ? AND appointment_date = ? AND timeslot = ? AND status != ?').get(doctor_id, appointment_date, timeslot, 'cancelled').count;
+  if (existingAppointmentsInSlot >= maxAppointmentsInSlot) {
+    return res.status(409).json({ error: 'This timeslot is already full.' });
+  }
 
   const tokenNumber = getNextTokenNumber(db, doctor_id, appointment_date);
   const id = uuid();
   db.prepare(
-    `INSERT INTO appointments (id, hospital_id, doctor_id, patient_id, appointment_date, token_number, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, hid(req), doctor_id, patient_id, appointment_date, tokenNumber, notes || null);
+    `INSERT INTO appointments (id, hospital_id, doctor_id, patient_id, appointment_date, token_number, notes, timeslot)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, hid(req), doctor_id, patient_id, appointment_date, tokenNumber, notes || null, timeslot);
 
   res.status(201).json({ id, token_number: tokenNumber, message: 'Appointment booked & token generated' });
 });

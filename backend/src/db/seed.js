@@ -8,6 +8,28 @@ const today = new Date().toISOString().slice(0, 10);
 
 function upsertSuperAdmin() {
   const exists = db.prepare('SELECT id FROM super_admins WHERE email = ?').get('admin@clinictokens.app');
+  // Ensure doctor_schedules table exists
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS doctor_schedules (
+      doctor_id TEXT NOT NULL,
+      hospital_id TEXT NOT NULL,
+      date TEXT NOT NULL,
+      is_available INTEGER NOT NULL DEFAULT 0,
+      timeslots TEXT,
+      PRIMARY KEY (doctor_id, date),
+      FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE,
+      FOREIGN KEY (hospital_id) REFERENCES hospitals(id) ON DELETE CASCADE
+    );
+  `);
+  // Add timeslot column to appointments if it doesn't exist
+  try {
+    db.exec('ALTER TABLE appointments ADD COLUMN timeslot TEXT');
+  } catch (err) {
+    if (!err.message.includes('duplicate column name')) {
+      // if it's not a "duplicate column" error, something is wrong
+      throw err;
+    }
+  }
   if (exists) return exists.id;
   const id = uuid();
   db.prepare(
@@ -76,16 +98,16 @@ function upsertPatient(hospitalId, name, phone) {
   return id;
 }
 
-function bookToken(hospitalId, doctorId, patientId, date) {
+function bookToken(hospitalId, doctorId, patientId, date, timeslot) {
   const already = db.prepare(
     `SELECT id FROM appointments WHERE doctor_id = ? AND patient_id = ? AND appointment_date = ?`
   ).get(doctorId, patientId, date);
   if (already) return;
   const tokenNumber = getNextTokenNumber(db, doctorId, date);
   db.prepare(
-    `INSERT INTO appointments (id, hospital_id, doctor_id, patient_id, appointment_date, token_number)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).run(uuid(), hospitalId, doctorId, patientId, date, tokenNumber);
+    `INSERT INTO appointments (id, hospital_id, doctor_id, patient_id, appointment_date, token_number, timeslot)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(uuid(), hospitalId, doctorId, patientId, date, tokenNumber, timeslot);
 }
 
 const superAdminId = upsertSuperAdmin();
@@ -99,8 +121,20 @@ const patientNames = [
 ];
 const patientIds = patientNames.map(([n, p]) => upsertPatient(hospitalId, n, p));
 
+// Create a default schedule for the demo doctors for today
+const demoTimeslots = ['09:00AM - 10:00AM', '10:00AM - 11:00AM', '11:00AM - 12:00PM'];
+db.prepare(`INSERT OR REPLACE INTO doctor_schedules (doctor_id, hospital_id, date, is_available, timeslots) VALUES (?, ?, ?, ?, ?)`).run(doctor1, hospitalId, today, 1, JSON.stringify(demoTimeslots));
+db.prepare(`INSERT OR REPLACE INTO doctor_schedules (doctor_id, hospital_id, date, is_available, timeslots) VALUES (?, ?, ?, ?, ?)`).run(doctor2, hospitalId, today, 1, JSON.stringify(demoTimeslots));
+
+// Set avg_minutes_per_patient for demo doctors to enable timeslot capacity calculation
+db.prepare(`UPDATE doctors SET avg_minutes_per_patient = 15 WHERE id = ?`).run(doctor1);
+db.prepare(`UPDATE doctors SET avg_minutes_per_patient = 15 WHERE id = ?`).run(doctor2);
+
 patientIds.forEach((pid, idx) => {
-  bookToken(hospitalId, idx % 2 === 0 ? doctor1 : doctor2, pid, today);
+  // Book demo appointments into the first available timeslot
+  const doctorForPatient = idx % 2 === 0 ? doctor1 : doctor2;
+  const timeslotForPatient = demoTimeslots[0];
+  bookToken(hospitalId, doctorForPatient, pid, today, timeslotForPatient);
 });
 
 // Mark the first token of doctor1 as in_progress so the display screen has something to show

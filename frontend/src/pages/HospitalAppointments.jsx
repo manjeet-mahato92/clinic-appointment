@@ -17,7 +17,7 @@ export default function HospitalAppointments() {
   const [searchParams] = useSearchParams();
 
   const [bookOpen, setBookOpen] = useState(false);
-  const [bookForm, setBookForm] = useState({ doctor_id: '', patient_id: '' });
+  const [bookForm, setBookForm] = useState({ doctor_id: '', patient_id: '', timeslot: '' });
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
   const [newDate, setNewDate] = useState('');
   const [error, setError] = useState('');
@@ -31,9 +31,12 @@ export default function HospitalAppointments() {
   useEffect(() => { load(); }, [date, doctorFilter]);
 
   useEffect(() => {
-    api.get('/hospital/doctors').then((r) => setDoctors(r.data));
+    // Fetch doctors with their schedule for the selected date
+    api.get('/hospital/doctors', { params: { date } }).then((r) => {
+      setDoctors(r.data);
+    });
     api.get('/hospital/patients').then((r) => setPatients(r.data));
-  }, []);
+  }, [date]);
 
   useEffect(() => {
     const patientId = searchParams.get('patient_id');
@@ -49,7 +52,7 @@ export default function HospitalAppointments() {
     try {
       await api.post('/hospital/appointments', { ...bookForm, appointment_date: date });
       setBookOpen(false);
-      setBookForm({ doctor_id: '', patient_id: '' });
+      setBookForm({ doctor_id: '', patient_id: '', timeslot: '' });
       load();
     } catch (err) {
       setError(err.response?.data?.error || 'Could not book token');
@@ -78,6 +81,20 @@ export default function HospitalAppointments() {
     completed: appointments.filter((a) => a.status === 'completed').length,
     cancelled: appointments.filter((a) => a.status === 'cancelled').length,
   }), [appointments]);
+
+  const availableTimeslotsForSelectedDoctor = useMemo(() => {
+    if (!bookForm.doctor_id) return [];
+    const doctor = doctors.find(d => d.id === bookForm.doctor_id);
+    if (!doctor || !doctor.schedule?.is_available) return [];
+
+    const maxPerSlot = Math.floor(60 / (doctor.avg_minutes_per_patient || 15));
+
+    return doctor.schedule.timeslots.map(slot => {
+      const bookedCount = appointments.filter(a => a.doctor_id === doctor.id && a.timeslot === slot && a.status !== 'cancelled').length;
+      const available = maxPerSlot - bookedCount;
+      return { slot, available, isFull: available <= 0 };
+    });
+  }, [bookForm.doctor_id, doctors, appointments]);
 
   return (
     <Layout title="Hospital / Clinic" navItems={hospitalNav}>
@@ -146,6 +163,7 @@ export default function HospitalAppointments() {
                 <th className="text-left px-5 py-3">Patient</th>
                 <th className="text-left px-5 py-3">Doctor</th>
                 <th className="text-left px-5 py-3">Status</th>
+                <th className="text-left px-5 py-3">Timeslot</th>
                 <th className="text-right px-5 py-3">Actions</th>
               </tr>
             </thead>
@@ -159,6 +177,7 @@ export default function HospitalAppointments() {
                   </td>
                   <td className="px-5 py-4 align-top text-slate-soft">{a.doctor_name}</td>
                   <td className="px-5 py-4 align-top"><StatusBadge status={a.status} /></td>
+                  <td className="px-5 py-4 align-top text-slate-soft">{a.timeslot || '—'}</td>
                   <td className="px-5 py-4 align-top text-right flex flex-wrap justify-end gap-2">
                     {a.whatsapp_available === 1 && (
                       <a
@@ -193,7 +212,7 @@ export default function HospitalAppointments() {
               ))}
               {!appointments.length && (
                 <tr>
-                  <td colSpan={5} className="text-center px-5 py-10 text-slate-soft">
+                  <td colSpan={6} className="text-center px-5 py-10 text-slate-soft">
                     No tokens for this date yet.
                   </td>
                 </tr>
@@ -214,8 +233,25 @@ export default function HospitalAppointments() {
               required
             >
               <option value="">Select a doctor</option>
-              {doctors.map((d) => (
+              {doctors.filter(d => d.schedule?.is_available).map((d) => (
                 <option key={d.id} value={d.id}>{d.doctor_name} — {d.speciality || 'General'}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Timeslot</label>
+            <select
+              className="input"
+              value={bookForm.timeslot}
+              onChange={(e) => setBookForm((f) => ({ ...f, timeslot: e.target.value }))}
+              required
+              disabled={!bookForm.doctor_id || availableTimeslotsForSelectedDoctor.length === 0}
+            >
+              <option value="">Select a timeslot</option>
+              {availableTimeslotsForSelectedDoctor.map(({ slot, available, isFull }) => (
+                <option key={slot} value={slot} disabled={isFull}>
+                  {slot} ({available} slot{available === 1 ? '' : 's'} left)
+                </option>
               ))}
             </select>
           </div>
