@@ -3,6 +3,7 @@ export const superAdminNav = [
   { to: '/super-admin/hospitals', label: 'Hospitals', icon: '⛨' },
   { to: '/super-admin/doctors', label: 'Doctors', icon: '⚕' },
   { to: '/super-admin/patients', label: 'Patients', icon: '☺' },
+  { to: '/super-admin/subscriptions', label: 'Subscriptions', icon: '💳' },
   { to: '/super-admin/banners', label: 'Banner Ads', icon: '▤' },
 ];
 

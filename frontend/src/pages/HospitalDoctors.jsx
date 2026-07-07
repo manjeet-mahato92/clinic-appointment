@@ -257,6 +257,8 @@ const ChangePasswordModal = ({ doctor, onClose, onSave }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const { user } = useAuth();
+  const { hospitalId } = useParams();
 
   const handleSave = async () => {
     if (!password) {

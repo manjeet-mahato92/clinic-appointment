@@ -3,6 +3,7 @@ import ProtectedRoute from './components/ProtectedRoute.jsx';
 import SuperAdminEditHospital from './pages/SuperAdminEditHospital.jsx';
 import SuperAdminDoctors from './pages/SuperAdminDoctors.jsx';
 import SuperAdminPatients from './pages/SuperAdminPatients.jsx';
+import SuperAdminSubscriptions from './pages/SuperAdminSubscriptions.jsx';
 
 import Login from './pages/Login.jsx';
 import PatientBooking from './pages/PatientBooking.jsx';
@@ -41,6 +42,7 @@ export default function App() {
       <Route path="/super-admin/hospitals/:hospitalId/edit" element={<ProtectedRoute role="super_admin"><SuperAdminEditHospital /></ProtectedRoute>} />
       <Route path="/super-admin/doctors" element={<ProtectedRoute role="super_admin"><SuperAdminDoctors /></ProtectedRoute>} />
       <Route path="/super-admin/patients" element={<ProtectedRoute role="super_admin"><SuperAdminPatients /></ProtectedRoute>} />
+      <Route path="/super-admin/subscriptions" element={<ProtectedRoute role="super_admin"><SuperAdminSubscriptions /></ProtectedRoute>} />
       <Route path="/super-admin/hospitals/:hospitalId/doctors" element={<ProtectedRoute role="super_admin"><HospitalDoctors /></ProtectedRoute>} />
       <Route path="/super-admin/hospitals/:hospitalId/patients" element={<ProtectedRoute role="super_admin"><HospitalPatients /></ProtectedRoute>} />
       <Route path="/super-admin/banners" element={<ProtectedRoute role="super_admin"><SuperAdminBanners /></ProtectedRoute>} />

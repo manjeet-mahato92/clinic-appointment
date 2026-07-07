@@ -410,15 +410,89 @@ router.delete('/banners/:id', (req, res) => {
 router.get('/summary', (req, res) => {
   const totals = db.prepare(`
     SELECT
-      (SELECT COUNT(*) FROM hospitals) AS totalHospitals,
-      (SELECT COUNT(*) FROM hospitals WHERE status = 'active') AS activeHospitals,
-      (SELECT COUNT(*) FROM hospitals WHERE status = 'paused') AS pausedHospitals,
-      (SELECT COUNT(*) FROM hospitals WHERE status = 'suspended') AS suspendedHospitals,
-      (SELECT COUNT(*) FROM doctors) AS totalDoctors,
-      (SELECT COUNT(*) FROM patients) AS totalPatients,
-      (SELECT COUNT(*) FROM appointments WHERE appointment_date = date('now')) AS todaysAppointments
+      (SELECT COUNT(*) FROM hospitals) as totalHospitals,
+      (SELECT COUNT(*) FROM hospitals WHERE status = 'active') as activeHospitals,
+      (SELECT COUNT(*) FROM hospitals WHERE status = 'suspended') as suspendedHospitals,
+      (SELECT COUNT(*) FROM doctors) as totalDoctors,
+      (SELECT COUNT(*) FROM patients) as totalPatients,
+      (SELECT COUNT(*) FROM appointments WHERE appointment_date = date('now')) as todaysAppointments
   `).get();
-  res.json(totals);
+
+  const hospitalStatusBreakdown = [
+    { name: 'Active', value: totals.activeHospitals },
+    { name: 'Suspended', value: totals.suspendedHospitals },
+  ].filter(item => item.value > 0);
+
+  const hospitalGrowth = db.prepare(`
+    SELECT strftime('%Y-%m', activation_date) as month, COUNT(id) as new_hospitals
+    FROM hospitals
+    WHERE activation_date IS NOT NULL
+    GROUP BY month
+    ORDER BY month ASC
+  `).all();
+
+  const topHospitalsByDoctors = db.prepare(`
+    SELECT h.hospital_name, COUNT(d.id) as doctor_count
+    FROM hospitals h
+    LEFT JOIN doctors d ON h.id = d.hospital_id
+    GROUP BY h.id
+    ORDER BY doctor_count DESC
+    LIMIT 10
+  `).all();
+
+  res.json({ ...totals, hospitalStatusBreakdown, hospitalGrowth, topHospitalsByDoctors });
+});
+
+
+// ---------- Subscription Plans ----------
+
+router.get('/subscription-plans', (req, res) => {
+  const plans = db.prepare('SELECT * FROM subscription_plans ORDER BY created_at DESC').all();
+  res.json(plans);
+});
+
+router.post('/subscription-plans', (req, res) => {
+  const { name, max_doctors, max_patients, max_tokens, price_monthly } = req.body;
+  if (!name) return res.status(400).json({ error: 'Plan Name is required' });
+
+  const id = uuid();
+  try {
+    db.prepare(
+      `INSERT INTO subscription_plans (id, name, max_doctors, max_patients, max_tokens, price_monthly)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(id, name, max_doctors || null, max_patients || null, max_tokens || null, price_monthly || null);
+    res.status(201).json({ id, message: 'Subscription plan created' });
+  } catch (err) {
+    if (String(err.message).includes('UNIQUE')) {
+      return res.status(409).json({ error: 'A plan with this name already exists.' });
+    }
+    res.status(500).json({ error: 'An unexpected error occurred while creating the plan.' });
+  }
+});
+
+router.patch('/subscription-plans/:id', (req, res) => {
+  const { id } = req.params;
+  const { name, max_doctors, max_patients, max_tokens, price_monthly, is_active } = req.body;
+
+  const fields = ['name', 'max_doctors', 'max_patients', 'max_tokens', 'price_monthly', 'is_active'];
+  const updates = [];
+  const params = { id };
+
+  for (const f of fields) {
+    if (req.body[f] !== undefined) {
+      updates.push(`${f} = @${f}`);
+      params[f] = req.body[f];
+    }
+  }
+  if (!updates.length) return res.status(400).json({ error: 'No fields to update' });
+
+  db.prepare(`UPDATE subscription_plans SET ${updates.join(', ')} WHERE id = @id`).run(params);
+  res.json({ message: 'Subscription plan updated' });
+});
+
+router.delete('/subscription-plans/:id', (req, res) => {
+  db.prepare('DELETE FROM subscription_plans WHERE id = ?').run(req.params.id);
+  res.json({ message: 'Subscription plan deleted' });
 });
 
 export default router;

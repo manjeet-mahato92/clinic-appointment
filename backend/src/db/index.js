@@ -21,6 +21,20 @@ db.pragma('foreign_keys = ON');
 const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf-8');
 db.exec(schema);
 
+// Ensure subscription_plans table exists on every run.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS subscription_plans (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    max_doctors INTEGER,
+    max_patients INTEGER,
+    max_tokens INTEGER,
+    price_monthly INTEGER,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 const hospitalColumns = db.prepare('PRAGMA table_info(hospitals)').all().map((row) => row.name);
 if (!hospitalColumns.includes('header_color')) {
   db.prepare('ALTER TABLE hospitals ADD COLUMN header_color TEXT').run();
