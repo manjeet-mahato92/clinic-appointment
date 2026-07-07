@@ -19,6 +19,7 @@ import HospitalDoctors from './pages/HospitalDoctors.jsx';
 import HospitalPatients from './pages/HospitalPatients.jsx';
 import HospitalBilling from './pages/HospitalBilling.jsx';
 import HospitalProfile from './pages/HospitalProfile.jsx';
+import PrintableToken from './pages/PrintableToken.jsx';
 import HospitalDoctorQueue from './pages/HospitalDoctorQueue.jsx';
 
 import DoctorQueue from './pages/DoctorQueue.jsx';
@@ -53,6 +54,7 @@ export default function App() {
       <Route path="/hospital/doctor/:doctorId/queue" element={<ProtectedRoute role="hospital"><HospitalDoctorQueue /></ProtectedRoute>} />
       <Route path="/hospital/patients" element={<ProtectedRoute role="hospital"><HospitalPatients /></ProtectedRoute>} />
       <Route path="/hospital/profile" element={<ProtectedRoute role="hospital"><HospitalProfile /></ProtectedRoute>} />
+      <Route path="/hospital/appointments/:appointmentId/print" element={<ProtectedRoute role="hospital"><PrintableToken /></ProtectedRoute>} />
       <Route path="/hospital/billing" element={<ProtectedRoute role="hospital"><HospitalBilling /></ProtectedRoute>} />
 
       <Route path="/doctor" element={<ProtectedRoute role="doctor"><DoctorQueue /></ProtectedRoute>} />

@@ -39,6 +39,9 @@ const hospitalColumns = db.prepare('PRAGMA table_info(hospitals)').all().map((ro
 if (!hospitalColumns.includes('header_color')) {
   db.prepare('ALTER TABLE hospitals ADD COLUMN header_color TEXT').run();
 }
+if (!hospitalColumns.includes('subscription_plan_id')) {
+  db.prepare('ALTER TABLE hospitals ADD COLUMN subscription_plan_id TEXT REFERENCES subscription_plans(id) ON DELETE SET NULL').run();
+}
 const hospitalExtras = ['rep_age', 'rep_gender', 'district', 'state', 'pincode'];
 for (const column of hospitalExtras) {
   if (!hospitalColumns.includes(column)) {

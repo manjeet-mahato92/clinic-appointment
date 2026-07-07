@@ -12,8 +12,8 @@ router.use(requireAuth, requireRole('super_admin'));
 
 router.get('/hospitals', (req, res) => {
   const { q, state, district } = req.query;
-  let sql = `SELECT id, hospital_name, email, contact_number, hospital_address, status,
-                    activation_date, payment_reference, timing, logo_url, created_at
+  let sql = `SELECT id, hospital_name, email, contact_number, status,
+                    activation_date, subscription_plan_id
              FROM hospitals`;
   const params = [];
   const conditions = [];
@@ -152,7 +152,7 @@ router.post('/hospitals', (req, res) => {
 router.patch('/hospitals/:id', (req, res) => {
   const fields = [
     'hospital_name', 'contact_number', 'hospital_address', 'timing',
-    'logo_url', 'banner_url', 'header_color', 'rep_name', 'rep_contact_number', 'rep_designation',
+    'logo_url', 'banner_url', 'header_color', 'rep_name', 'rep_contact_number', 'rep_designation', 'subscription_plan_id',
     'activation_date', 'payment_reference', 'rep_age', 'rep_gender', 'district', 'state', 'pincode',
   ];
   const updates = [];

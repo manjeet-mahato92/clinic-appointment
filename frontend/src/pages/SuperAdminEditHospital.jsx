@@ -11,10 +11,12 @@ export default function SuperAdminEditHospital() {
   const [form, setForm] = useState(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [plans, setPlans] = useState([]);
   const { loginWithToken } = useAuth();
 
   useEffect(() => {
     api.get(`/super-admin/hospitals/${hospitalId}`).then((r) => setForm(r.data));
+    api.get('/super-admin/subscription-plans').then((r) => setPlans(r.data));
   }, [hospitalId]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -143,6 +145,19 @@ export default function SuperAdminEditHospital() {
             </div>
 
             <div className="border-t border-slate-200 pt-6">
+              <h3 className="text-lg font-semibold text-ink mb-4">Subscription</h3>
+              <div>
+                <label className="label">Assigned Plan</label>
+                <select className="input" value={form.subscription_plan_id || ''} onChange={set('subscription_plan_id')}>
+                  <option value="">No Plan Assigned</option>
+                  {plans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>{plan.name} ({formatPrice(plan.price_monthly)}/month)</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-200 pt-6">
               <h3 className="text-lg font-semibold text-ink mb-4">Location Details</h3>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
@@ -222,3 +237,5 @@ export default function SuperAdminEditHospital() {
     </Layout>
   );
 }
+
+const formatPrice = (price) => price ? `₹${price.toLocaleString('en-IN')}` : 'Free';

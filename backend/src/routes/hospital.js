@@ -39,6 +39,26 @@ router.patch('/profile', (req, res) => {
   res.json({ message: 'Profile updated' });
 });
 
+// ---------- Billing ----------
+
+router.get('/billing', (req, res) => {
+  const hospitalId = hid(req);
+  const hospital = db.prepare('SELECT subscription_plan_id FROM hospitals WHERE id = ?').get(hospitalId);
+
+  if (!hospital) {
+    return res.status(404).json({ error: 'Hospital not found.' });
+  }
+
+  let currentPlan = null;
+  if (hospital.subscription_plan_id) {
+    currentPlan = db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(hospital.subscription_plan_id);
+  }
+
+  const availablePlans = db.prepare('SELECT * FROM subscription_plans WHERE is_active = 1 ORDER BY price_monthly ASC').all();
+
+  res.json({ currentPlan, availablePlans });
+});
+
 // ---------- Manage Doctors ----------
 
 router.get('/doctors', (req, res) => {
@@ -382,11 +402,14 @@ router.get('/appointments', (req, res) => {
   const { date, doctor_id } = req.query;
   const { patient_id } = req.query;
   let sql = `
-    SELECT a.*, p.first_name as patient_first_name, p.last_name as patient_last_name, p.patient_name, p.contact_number AS patient_contact, p.whatsapp_available,
-           d.doctor_name, d.speciality
+    SELECT a.*, p.first_name as patient_first_name, p.last_name as patient_last_name,
+           p.patient_name, p.contact_number AS patient_contact, p.whatsapp_available,
+           d.doctor_name, d.speciality,
+           ds.room_number
     FROM appointments a
     JOIN patients p ON p.id = a.patient_id
     JOIN doctors d ON d.id = a.doctor_id
+    LEFT JOIN doctor_schedules ds ON ds.doctor_id = a.doctor_id AND ds.date = a.appointment_date
     WHERE a.hospital_id = ?`;
   const params = [hid(req)];
   if (date) { sql += ' AND a.appointment_date = ?'; params.push(date); }
@@ -394,6 +417,26 @@ router.get('/appointments', (req, res) => {
   if (patient_id) { sql += ' AND a.patient_id = ?'; params.push(patient_id); }
   sql += ' ORDER BY a.appointment_date ASC, a.token_number ASC';
   res.json(db.prepare(sql).all(...params));
+});
+
+router.get('/appointments/:id', (req, res) => {
+  const appointment = db.prepare(`
+    SELECT
+      a.*,
+      p.patient_name,
+      d.doctor_name,
+      h.hospital_name,
+      h.hospital_address,
+      ds.room_number
+    FROM appointments a
+    JOIN patients p ON p.id = a.patient_id
+    JOIN doctors d ON d.id = a.doctor_id
+    JOIN hospitals h ON h.id = a.hospital_id
+    LEFT JOIN doctor_schedules ds ON ds.doctor_id = a.doctor_id AND ds.date = a.appointment_date
+    WHERE a.id = ? AND a.hospital_id = ?
+  `).get(req.params.id, hid(req));
+  if (!appointment) return res.status(404).json({ error: 'Appointment not found' });
+  res.json(appointment);
 });
 
 // Create appointment -> auto-generates the next token number for that doctor/date

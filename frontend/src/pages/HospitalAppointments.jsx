@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import Layout from '../components/Layout.jsx';
 import Modal from '../components/Modal.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
@@ -227,6 +227,13 @@ export default function HospitalAppointments() {
                   <td className="px-5 py-4 align-top"><StatusBadge status={a.status} /></td>
                   <td className="px-5 py-4 align-top text-slate-soft">{a.timeslot || '—'}</td>
                   <td className="px-5 py-4 align-top text-right flex flex-wrap justify-end gap-2">
+                    <Link
+                      to={`/hospital/appointments/${a.id}/print`}
+                      target="_blank"
+                      className="btn-sm bg-white text-ink border border-slate-200 hover:bg-slate-50"
+                    >
+                      Print
+                    </Link>
                     {a.whatsapp_available === 1 && (
                       <a
                         href={whatsappLink(a.patient_contact, a.patient_name)}
