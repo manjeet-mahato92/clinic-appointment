@@ -29,8 +29,8 @@ export default function SuperAdminLogin() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-ink px-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-6">
-          <div className="font-display font-bold text-2xl text-white">Super Admin Login</div>
+        <div className="text-center mb-8">
+          <img src="/logo-light.svg" alt="Clinqo" className="h-9 mx-auto mb-2" />
           <p className="text-white/50 text-sm mt-1">Access the platform administration panel.</p>
         </div>
 

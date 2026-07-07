@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api/client.js';
 import { useMemo } from 'react';
 const EMPTY_FORM = {
-  hospital_id: '', doctor_id: '', appointment_date: new Date().toISOString().slice(0, 10),
+  hospital_id: '', doctor_id: '', appointment_date: new Date().toISOString().slice(0, 10), first_name: '', last_name: '',
   patient_name: '', contact_number: '', email: '', address: '', whatsapp_available: false, timeslot: '',
 };
 
@@ -74,7 +74,10 @@ export default function PatientBooking() {
   return (
     <div className="min-h-screen bg-ink flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
-        <h1 className="font-display text-white text-2xl font-semibold text-center mb-6">Book an Appointment Token</h1>
+        <div className="text-center mb-8">
+          <img src="/logo-light.svg" alt="Clinqo" className="h-9 mx-auto mb-2" />
+          <h1 className="text-white/80 text-lg font-semibold">Book an Appointment Token</h1>
+        </div>
         <form onSubmit={submit} className="card space-y-4">
           <div>
             <label className="label">Clinic</label>
@@ -109,9 +112,15 @@ export default function PatientBooking() {
               ))}
             </select>
           </div>
-          <div>
-            <label className="label">Your Name</label>
-            <input className="input" value={form.patient_name} onChange={set('patient_name')} required />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">First Name</label>
+              <input className="input" value={form.first_name} onChange={set('first_name')} required />
+            </div>
+            <div>
+              <label className="label">Last Name</label>
+              <input className="input" value={form.last_name} onChange={set('last_name')} required />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

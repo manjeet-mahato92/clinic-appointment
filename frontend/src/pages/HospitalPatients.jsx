@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import Layout from '../components/Layout.jsx';
 import Modal from '../components/Modal.jsx';
-import { hospitalNav } from '../navConfigs.js';
+import { hospitalNav, superAdminNav } from '../navConfigs.js';
 import api from '../api/client.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import { STATES, LOCATIONS } from '../utils/locations.js';
 
 const EMPTY_FORM = {
-  patient_name: '', contact_number: '', email: '', address: '', whatsapp_available: false,
+  first_name: '', last_name: '', contact_number: '', email: '', address: '', whatsapp_available: false,
   adhar_card: '', age: '', gender: '', district: '', state: '', pincode: '',
 };
 
 export default function HospitalPatients() {
   const [patients, setPatients] = useState([]);
+  const [filters, setFilters] = useState({ state: '', district: '', gender: '', sortBy: '' });
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
@@ -21,18 +23,29 @@ export default function HospitalPatients() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyAppointments, setHistoryAppointments] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const { user } = useAuth();
+  const { hospitalId } = useParams();
   const navigate = useNavigate();
 
-  const load = () => api.get('/hospital/patients', { params: q ? { q } : {} }).then((r) => setPatients(r.data));
-  useEffect(() => { load(); }, [q]);
+  const load = () => {
+    const params = { q, ...filters };
+    const url = user.role === 'super_admin'
+      ? `/super-admin/hospitals/${hospitalId}/patients`
+      : '/hospital/patients';
+    api.get(url, { params }).then((r) => setPatients(r.data));
+  };
+  useEffect(() => { load(); }, [q, filters, user.role, hospitalId]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: k === 'whatsapp_available' ? e.target.checked : e.target.value }));
+  const setFilter = (k) => (e) => setFilters((f) => ({ ...f, [k]: e.target.value, ...(k === 'state' && { district: '' }) }));
+
 
   const openPatientModal = (patient) => {
     if (patient) {
       setEditingPatient(patient.id);
       setForm({
-        patient_name: patient.patient_name,
+        first_name: patient.first_name,
+        last_name: patient.last_name,
         contact_number: patient.contact_number,
         email: patient.email || '',
         address: patient.address || '',
@@ -56,10 +69,11 @@ export default function HospitalPatients() {
     e.preventDefault();
     setError('');
     try {
+      const url = user.role === 'super_admin' ? `/super-admin/hospitals/${hospitalId}/patients` : '/hospital/patients';
       if (editingPatient) {
-        await api.patch(`/hospital/patients/${editingPatient}`, form);
+        await api.patch(`${url}/${editingPatient}`, form);
       } else {
-        await api.post('/hospital/patients', form);
+        await api.post(url, form);
       }
       setOpen(false);
       setEditingPatient(null);
@@ -72,7 +86,8 @@ export default function HospitalPatients() {
 
   const remove = async (id) => {
     if (!confirm('Remove this patient?')) return;
-    await api.delete(`/hospital/patients/${id}`);
+    const url = user.role === 'super_admin' ? `/super-admin/hospitals/${hospitalId}/patients/${id}` : `/hospital/patients/${id}`;
+    await api.delete(url);
     load();
   };
 
@@ -82,9 +97,15 @@ export default function HospitalPatients() {
   const totalPatients = patients.length;
   const whatsappCount = patients.filter((patient) => patient.whatsapp_available).length;
 
+  const navItems = user.role === 'super_admin' ? superAdminNav : hospitalNav;
+  const layoutTitle = user.role === 'super_admin' ? 'Super Admin' : 'Hospital / Clinic';
+
   return (
-    <Layout title="Hospital / Clinic" navItems={hospitalNav}>
+    <Layout title={layoutTitle} navItems={navItems}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-6">
+        {user.role === 'super_admin' && (
+          <Link to={`/super-admin/hospitals/${hospitalId}/edit`} className="text-sm text-slate-soft hover:underline absolute top-6">← Back to Hospital</Link>
+        )}
         <div>
           <h1 className="text-2xl font-semibold">Patients</h1>
           <p className="text-slate-soft">Manage patient records, appointments, and contact preferences in one place.</p>
@@ -110,11 +131,33 @@ export default function HospitalPatients() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
-        <input className="input max-w-lg flex-1" placeholder="Search by name, phone, district…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <div className="flex flex-wrap gap-3">
-          <button className="btn-secondary" onClick={() => setQ('')}>Clear</button>
-          <button className="btn-primary" onClick={() => openPatientModal(null)}>New Patient</button>
+      <div className="card p-4 mb-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <input className="input lg:col-span-2" placeholder="Search by name, phone, district…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <select className="input" value={filters.state} onChange={setFilter('state')}>
+            <option value="">All States</option>
+            {STATES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select className="input" value={filters.district} onChange={setFilter('district')} disabled={!filters.state}>
+            <option value="">All Districts</option>
+            {(LOCATIONS[filters.state] || []).map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <select className="input" value={filters.gender} onChange={setFilter('gender')}>
+            <option value="">All Genders</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Others">Others</option>
+          </select>
+        </div>
+        <div className="flex flex-wrap gap-3 mt-4 items-center">
+          <div className="flex-1">
+            <label className="label text-xs">Sort By</label>
+            <select className="input max-w-xs" value={filters.sortBy} onChange={setFilter('sortBy')}>
+              <option value="">Most Recent</option>
+              <option value="most_visited">Most Visited</option>
+            </select>
+          </div>
+          <button className="btn-secondary" onClick={() => { setQ(''); setFilters({ state: '', district: '', gender: '', sortBy: '' }); }}>Clear Filters</button>
         </div>
       </div>
 
@@ -124,6 +167,7 @@ export default function HospitalPatients() {
             <thead className="bg-paper text-slate-soft text-xs uppercase tracking-wide">
               <tr>
                 <th className="text-left px-5 py-3">Patient</th>
+                <th className="text-left px-5 py-3">Visits</th>
                 <th className="text-left px-5 py-3">Age</th>
                 <th className="text-left px-5 py-3">Location</th>
                 <th className="text-left px-5 py-3">WhatsApp</th>
@@ -134,9 +178,10 @@ export default function HospitalPatients() {
               {patients.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-4">
-                    <div className="font-semibold text-ink">{p.patient_name}</div>
+                    <div className="font-semibold text-ink">{p.first_name} {p.last_name}</div>
                     <div className="text-xs text-slate-soft">{p.contact_number || 'No contact'}</div>
                   </td>
+                  <td className="px-5 py-4 text-slate-soft font-semibold">{p.appointment_count}</td>
                   <td className="px-5 py-4 text-slate-soft">{p.age || '—'}</td>
                   <td className="px-5 py-4 text-slate-soft">{[p.district, p.state].filter(Boolean).join(', ') || '—'}</td>
                   <td className="px-5 py-4">
@@ -147,7 +192,8 @@ export default function HospitalPatients() {
                         setHistoryLoading(true);
                         setHistoryOpen(true);
                         try {
-                          const res = await api.get('/hospital/appointments', { params: { patient_id: p.id } });
+                          const url = user.role === 'super_admin' ? `/super-admin/hospitals/${hospitalId}/appointments` : '/hospital/appointments';
+                          const res = await api.get(url, { params: { patient_id: p.id } });
                           setHistoryAppointments(res.data);
                         } catch (err) {
                           setHistoryAppointments([]);
@@ -178,7 +224,7 @@ export default function HospitalPatients() {
               ))}
               {!patients.length && (
                 <tr>
-                  <td colSpan={5} className="text-center py-10 text-slate-soft">No patients found.</td>
+                  <td colSpan={6} className="text-center py-10 text-slate-soft">No patients found.</td>
                 </tr>
               )}
             </tbody>
@@ -211,10 +257,14 @@ export default function HospitalPatients() {
 
       <Modal open={open} onClose={() => { setOpen(false); setEditingPatient(null); setForm(EMPTY_FORM); }} title={editingPatient ? 'Edit Patient' : 'Add Patient'}>
         <form onSubmit={submit} className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Patient Name</label>
-              <input className="input" value={form.patient_name} onChange={set('patient_name')} required />
+              <label className="label">First Name</label>
+              <input className="input" value={form.first_name} onChange={set('first_name')} required />
+            </div>
+            <div>
+              <label className="label">Last Name</label>
+              <input className="input" value={form.last_name} onChange={set('last_name')} required />
             </div>
             <div>
               <label className="label">Contact Number</label>
@@ -257,6 +307,14 @@ export default function HospitalPatients() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
+            
+            <div>
+              <label className="label">State</label>
+              <select className="input" value={form.state} onChange={set('state')}>
+                <option value="">Select state</option>
+                {STATES.map((state) => <option key={state} value={state}>{state}</option>)}
+              </select>
+            </div>
             <div>
               <label className="label">District</label>
               <select className="input" value={form.district} onChange={set('district')}>
@@ -264,13 +322,6 @@ export default function HospitalPatients() {
                 {(LOCATIONS[form.state] || []).map((district) => (
                   <option key={district} value={district}>{district}</option>
                 ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">State</label>
-              <select className="input" value={form.state} onChange={set('state')}>
-                <option value="">Select state</option>
-                {STATES.map((state) => <option key={state} value={state}>{state}</option>)}
               </select>
             </div>
             <div>

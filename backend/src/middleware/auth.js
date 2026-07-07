@@ -1,4 +1,5 @@
-import { verifyToken } from '../utils/auth.js';
+import jwt from 'jsonwebtoken';
+import { verifyToken, JWT_SECRET } from '../utils/auth.js';
 
 export function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
@@ -22,6 +23,10 @@ export function requireRole(...roles) {
     }
     next();
   };
+}
+
+export function createToken(user) {
+  return jwt.sign(user, JWT_SECRET, { expiresIn: '12h' });
 }
 
 // Ensures a hospital/doctor user can only touch their own hospital's data

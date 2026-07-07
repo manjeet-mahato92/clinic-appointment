@@ -42,6 +42,14 @@ for (const column of doctorExtras) {
   }
 }
 
+const scheduleColumns = db.prepare('PRAGMA table_info(doctor_schedules)').all().map((row) => row.name);
+if (!scheduleColumns.includes('room_number')) {
+  db.prepare('ALTER TABLE doctor_schedules ADD COLUMN room_number TEXT').run();
+}
+if (!scheduleColumns.includes('delay_minutes')) {
+  db.prepare('ALTER TABLE doctor_schedules ADD COLUMN delay_minutes INTEGER NOT NULL DEFAULT 0').run();
+}
+
 const patientColumns = db.prepare('PRAGMA table_info(patients)').all().map((row) => row.name);
 const patientExtras = [
   'adhar_card', 'age', 'gender', 'district', 'state', 'pincode',

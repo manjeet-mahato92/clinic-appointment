@@ -33,8 +33,10 @@ export default function Layout({ title, navItems, children }) {
     <div className="min-h-screen flex bg-paper">
       {/* Desktop / large sidebar */}
       <aside className={`hidden md:flex md:w-64 bg-ink text-white flex-col shrink-0`}> 
-        <div className="px-6 py-6 border-b border-white/10">
-          <div className="font-display font-semibold text-lg leading-tight">Clinic Token</div>
+        <div className="px-4 py-5 border-b border-white/10">
+          <a href="/" className="flex items-center gap-2">
+            <img src="/logo-light.svg" alt="Clinqo" className="h-8" />
+          </a>
           <div className="text-xs text-white/50 mt-0.5">{title}</div>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1">
@@ -54,14 +56,25 @@ export default function Layout({ title, navItems, children }) {
             </NavLink>
           ))}
         </nav>
-        <div className="px-4 py-4 border-t border-white/10">
-          <div className="text-sm font-medium truncate">{user?.name}</div>
-          <button
-            onClick={() => { logout(); navigate('/login'); }}
-            className="mt-2 text-xs text-white/60 hover:text-white underline underline-offset-2"
-          >
-            Sign out
-          </button>
+        <div className="px-4 py-4 border-t border-white/10 flex items-center gap-3 min-w-0">
+          {user?.role === 'doctor' && (
+            <div className="w-10 h-10 rounded-full bg-clinical flex-shrink-0 flex items-center justify-center font-bold text-white overflow-hidden">
+              {user.photo_url ? (
+                <img src={`${new URL(api.defaults.baseURL).origin}${user.photo_url}`} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                user.name?.[0]?.toUpperCase()
+              )}
+            </div>
+          )}
+          <div className="min-w-0">
+            <div className="text-sm font-medium truncate">{user?.name}</div>
+            <button
+              onClick={() => { logout(); navigate('/login'); }}
+              className="mt-1 text-xs text-white/60 hover:text-white underline underline-offset-2"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -77,7 +90,7 @@ export default function Layout({ title, navItems, children }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <div className="font-display font-semibold text-lg text-white">Clinic Token</div>
+          <img src="/logo-dark.svg" alt="Clinqo" className="h-7" />
         </div>
       </div>
 
@@ -90,7 +103,9 @@ export default function Layout({ title, navItems, children }) {
         <aside className={`absolute left-0 top-0 bottom-0 w-64 bg-ink text-white transform transition-transform ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="px-6 py-6 border-b border-white/10 flex items-center justify-between">
             <div>
-              <div className="font-display font-semibold text-lg leading-tight">Clinic Token</div>
+              <a href="/" className="flex items-center gap-2">
+                <img src="/logo-dark.svg" alt="Clinqo" className="h-8" />
+              </a>
               <div className="text-xs text-white/50 mt-0.5">{title}</div>
             </div>
             <button onClick={() => setMobileOpen(false)} className="p-2 rounded-md bg-white/5">
@@ -117,14 +132,25 @@ export default function Layout({ title, navItems, children }) {
               </NavLink>
             ))}
           </nav>
-          <div className="px-4 py-4 border-t border-white/10">
-            <div className="text-sm font-medium truncate">{user?.name}</div>
-            <button
-              onClick={() => { logout(); navigate('/login'); }}
-              className="mt-2 text-xs text-white/60 hover:text-white underline underline-offset-2"
-            >
-              Sign out
-            </button>
+          <div className="px-4 py-4 border-t border-white/10 flex items-center gap-3 min-w-0">
+            {user?.role === 'doctor' && (
+              <div className="w-10 h-10 rounded-full bg-clinical flex-shrink-0 flex items-center justify-center font-bold text-white overflow-hidden">
+                {user.photo_url ? (
+                  <img src={`${new URL(api.defaults.baseURL).origin}${user.photo_url}`} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  user.name?.[0]?.toUpperCase()
+                )}
+              </div>
+            )}
+            <div className="min-w-0">
+              <div className="text-sm font-medium truncate">{user?.name}</div>
+              <button
+                onClick={() => { logout(); navigate('/login'); }}
+                className="mt-1 text-xs text-white/60 hover:text-white underline underline-offset-2"
+              >
+                Sign out
+              </button>
+            </div>
           </div>
         </aside>
       </div>
@@ -137,7 +163,7 @@ export default function Layout({ title, navItems, children }) {
             <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
               <div className="flex items-center gap-4">
                 <div className="rounded-2xl overflow-hidden border border-white/20 bg-white/10 flex items-center justify-center">
-                  {hospital.logo_url ? <img src={hospital.logo_url} alt="{hospital.hospital_name}" className="object-cover" /> : <span className="text-white/70">LOGO</span>}
+                  {hospital.logo_url ? <img src={hospital.logo_url} alt="{hospital.hospital_name}" className="object-cover h-full max-h-24" /> : <span className="text-white/70">LOGO</span>}
                 </div>
                 {/* <div className="text-lg md:text-3xl font-semibold leading-tight">Welcome to {hospital.hospital_name}</div> */}
               </div>

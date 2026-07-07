@@ -63,8 +63,8 @@ export default function HospitalDoctorQueue() {
     <Layout title="Hospital / Clinic" navItems={hospitalNav}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">{doctorLabel} — Today’s Queue</h1>
-          <p className="text-slate-soft">{date} · receptionist queue control for this doctor.</p>
+          <h1 className="text-2xl font-semibold">{doctorLabel}’s Queue</h1>
+          <p className="text-slate-soft">{new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} · Receptionist queue control.</p>
         </div>
         <button className="btn-primary" onClick={clickNext}>Click Next ▶</button>
       </div>

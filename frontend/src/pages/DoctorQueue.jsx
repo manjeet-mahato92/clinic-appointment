@@ -51,7 +51,7 @@ export default function DoctorQueue() {
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold">Today’s Queue</h1>
-          <p className="text-slate-soft">{date} · auto-refreshes every few seconds</p>
+          <p className="text-slate-soft">{new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} · Auto-refreshes.</p>
         </div>
         <button className="btn-primary" onClick={clickNext}>Click Next ▶</button>
       </div>

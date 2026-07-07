@@ -106,7 +106,10 @@ export default function HospitalInsights() {
           </div>
           <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
             <div className="text-slate-soft text-sm">Showing</div>
-            <div className="text-ink font-semibold">{startDate} → {endDate}</div>
+            <div className="text-ink font-semibold">
+              {new Date(startDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} → 
+              {new Date(endDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </div>
             <div className="text-slate-soft text-xs">Preset: {activePreset}</div>
           </div>
         </div>

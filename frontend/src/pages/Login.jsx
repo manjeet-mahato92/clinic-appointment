@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
-const ROLES = [
+const ROLES = [ 
   { key: 'hospital', label: 'Hospital / Clinic' },
-  { key: 'super_admin', label: 'Super Admin' },
   { key: 'doctor', label: 'Doctor' },
   { key: 'display', label: 'Display Control' },
 ];
@@ -12,7 +11,6 @@ const ROLES = [
 const HOME_BY_ROLE = {
   hospital: '/hospital',
   doctor: '/doctor',
-  super_admin: '/super-admin',
   display: '/display/select-doctor',
 };
 
@@ -45,14 +43,14 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-ink px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-6">
-          <div className="font-display font-bold text-2xl text-white">Clinic Token Manager</div>
+      <div className="w-full max-w-lg">
+        <div className="text-center mb-8">
+          <img src="/logo-light.svg" alt="Clinqo" className="h-10 mx-auto mb-2" />
           <p className="text-white/50 text-sm mt-1">Appointment &amp; token management for clinics</p>
         </div>
 
         <div className="card">
-          <div className="grid grid-cols-2 gap-2 mb-6" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div className="grid grid-cols-3 gap-2 mb-6">
             {ROLES.map((r) => (
               <button
                 key={r.key}
@@ -100,8 +98,7 @@ export default function Login() {
         </p>
 
         <div className="mt-6 text-xs text-white/40 leading-relaxed text-center">
-          Demo: admin@clinictokens.app / SuperAdmin@123 &middot; reception@sunrise-clinic.test / Hospital@123
-          <br />rohan.mehta@sunrise-clinic.test / Doctor@123
+          Demo: reception@sunrise-clinic.test / Hospital@123 &middot; rohan.mehta@sunrise-clinic.test / Doctor@123
         </div>
       </div>
     </div>

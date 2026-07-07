@@ -14,12 +14,15 @@ export default function HospitalAppointments() {
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
   const [doctorFilter, setDoctorFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('asc');
   const [searchParams] = useSearchParams();
 
   const [bookOpen, setBookOpen] = useState(false);
   const [bookForm, setBookForm] = useState({ doctor_id: '', patient_id: '', timeslot: '' });
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
   const [newDate, setNewDate] = useState('');
+  const [newTimeslot, setNewTimeslot] = useState('');
   const [error, setError] = useState('');
 
   const load = () => {
@@ -28,15 +31,11 @@ export default function HospitalAppointments() {
     api.get('/hospital/appointments', { params }).then((r) => setAppointments(r.data));
   };
 
-  useEffect(() => { load(); }, [date, doctorFilter]);
-
   useEffect(() => {
-    // Fetch doctors with their schedule for the selected date
-    api.get('/hospital/doctors', { params: { date } }).then((r) => {
-      setDoctors(r.data);
-    });
+    load();
+    api.get('/hospital/doctors', { params: { date } }).then((r) => setDoctors(r.data));
     api.get('/hospital/patients').then((r) => setPatients(r.data));
-  }, [date]);
+  }, [date, doctorFilter]);
 
   useEffect(() => {
     const patientId = searchParams.get('patient_id');
@@ -67,9 +66,10 @@ export default function HospitalAppointments() {
 
   const reschedule = async (e) => {
     e.preventDefault();
-    await api.patch(`/hospital/appointments/${rescheduleTarget}/reschedule`, { new_date: newDate });
+    await api.patch(`/hospital/appointments/${rescheduleTarget}/reschedule`, { new_date: newDate, timeslot: newTimeslot });
     setRescheduleTarget(null);
     setNewDate('');
+    setNewTimeslot('');
     load();
   };
 
@@ -81,6 +81,21 @@ export default function HospitalAppointments() {
     completed: appointments.filter((a) => a.status === 'completed').length,
     cancelled: appointments.filter((a) => a.status === 'cancelled').length,
   }), [appointments]);
+
+  const filteredAppointments = useMemo(() => {
+    let filtered = [...appointments];
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(a => a.status === statusFilter);
+    }
+
+    filtered.sort((a, b) => {
+      if (sortOrder === 'asc') return a.token_number - b.token_number;
+      return b.token_number - a.token_number;
+    });
+
+    return filtered;
+  }, [appointments, statusFilter, sortOrder]);
 
   const availableTimeslotsForSelectedDoctor = useMemo(() => {
     if (!bookForm.doctor_id) return [];
@@ -96,12 +111,28 @@ export default function HospitalAppointments() {
     });
   }, [bookForm.doctor_id, doctors, appointments]);
 
+  const availableTimeslotsForReschedule = useMemo(() => {
+    if (!rescheduleTarget || !newDate) return [];
+    const appointmentToReschedule = appointments.find(a => a.id === rescheduleTarget);
+    if (!appointmentToReschedule) return [];
+
+    const doctor = doctors.find(d => d.id === appointmentToReschedule.doctor_id);
+    if (!doctor || !doctor.schedule?.is_available) return [];
+
+    const maxPerSlot = Math.floor(60 / (doctor.avg_minutes_per_patient || 15));
+    return doctor.schedule.timeslots.map(slot => {
+      const bookedCount = appointments.filter(a => a.doctor_id === doctor.id && a.appointment_date === newDate && a.timeslot === slot && a.status !== 'cancelled').length;
+      const available = maxPerSlot - bookedCount;
+      return { slot, available, isFull: available <= 0 };
+    });
+  }, [rescheduleTarget, newDate, appointments, doctors]);
+
   return (
     <Layout title="Hospital / Clinic" navItems={hospitalNav}>
       <div className="flex flex-col gap-6 mb-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold">Reception Dashboard</h1>
+            <h1 className="text-3xl font-semibold">Reception Dashboard for {new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h1>
             <p className="text-slate-soft mt-1">Manage today’s appointments, queue status, and quick patient actions.</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -137,7 +168,7 @@ export default function HospitalAppointments() {
       </div>
 
       <div className="card p-5 mb-6">
-        <div className="grid gap-4 md:grid-cols-[minmax(220px,1fr)_220px]">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="space-y-2">
             <label className="label">Date</label>
             <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -149,6 +180,23 @@ export default function HospitalAppointments() {
               {doctors.map((d) => (
                 <option key={d.id} value={d.id}>{d.doctor_name} — {d.speciality || 'General'}</option>
               ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="label">Status</label>
+            <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="all">All Statuses</option>
+              <option value="scheduled">Upcoming</option>
+              <option value="in_progress">Running</option>
+              <option value="completed">Closed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="label">Sort by Token</label>
+            <select className="input" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
             </select>
           </div>
         </div>
@@ -168,11 +216,11 @@ export default function HospitalAppointments() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {appointments.map((a) => (
+              {filteredAppointments.map((a) => (
                 <tr key={a.id} className="hover:bg-slate-50">
                   <td className="px-5 py-4 align-top font-mono font-bold text-ink">#{a.token_number}</td>
                   <td className="px-5 py-4 align-top">
-                    <div className="font-medium text-ink">{a.patient_name}</div>
+                    <div className="font-medium text-ink">{a.patient_first_name} {a.patient_last_name}</div>
                     <div className="text-slate-soft text-xs mt-1">{a.patient_contact}</div>
                   </td>
                   <td className="px-5 py-4 align-top text-slate-soft">{a.doctor_name}</td>
@@ -210,7 +258,7 @@ export default function HospitalAppointments() {
                   </td>
                 </tr>
               ))}
-              {!appointments.length && (
+              {!filteredAppointments.length && (
                 <tr>
                   <td colSpan={6} className="text-center px-5 py-10 text-slate-soft">
                     No tokens for this date yet.
@@ -275,15 +323,33 @@ export default function HospitalAppointments() {
         </form>
       </Modal>
 
-      <Modal open={!!rescheduleTarget} onClose={() => setRescheduleTarget(null)} title="Reschedule Appointment">
+      <Modal open={!!rescheduleTarget} onClose={() => { setRescheduleTarget(null); setNewTimeslot(''); }} title="Reschedule Appointment">
         <form onSubmit={reschedule} className="space-y-4">
           <div>
             <label className="label">New Date</label>
             <input type="date" className="input" value={newDate} onChange={(e) => setNewDate(e.target.value)} required />
           </div>
+          <div>
+            <label className="label">New Timeslot</label>
+            <select
+              className="input"
+              value={newTimeslot}
+              onChange={(e) => setNewTimeslot(e.target.value)}
+              required
+              disabled={!newDate || availableTimeslotsForReschedule.length === 0}
+            >
+              <option value="">Select a timeslot</option>
+              {availableTimeslotsForReschedule.map(({ slot, available, isFull }) => (
+                <option key={slot} value={slot} disabled={isFull}>
+                  {slot} ({available} slot{available === 1 ? '' : 's'} left)
+                </option>
+              ))}
+            </select>
+          </div>
           <button className="btn-primary w-full" type="submit">Confirm Reschedule</button>
         </form>
       </Modal>
+
     </Layout>
   );
 }

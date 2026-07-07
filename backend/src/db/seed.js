@@ -16,6 +16,8 @@ function upsertSuperAdmin() {
       date TEXT NOT NULL,
       is_available INTEGER NOT NULL DEFAULT 0,
       timeslots TEXT,
+      room_number TEXT,
+      delay_minutes INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (doctor_id, date),
       FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE,
       FOREIGN KEY (hospital_id) REFERENCES hospitals(id) ON DELETE CASCADE
@@ -30,6 +32,19 @@ function upsertSuperAdmin() {
       throw err;
     }
   }
+  try {
+    db.exec('ALTER TABLE doctors ADD COLUMN first_name TEXT');
+    db.exec('ALTER TABLE doctors ADD COLUMN last_name TEXT');
+    db.exec('UPDATE doctors SET first_name = SUBSTR(doctor_name, 1, INSTR(doctor_name, \' \') - 1), last_name = SUBSTR(doctor_name, INSTR(doctor_name, \' \') + 1) WHERE INSTR(doctor_name, \' \') > 0');
+    db.exec('UPDATE doctors SET first_name = doctor_name WHERE INSTR(doctor_name, \' \') = 0');
+  } catch (e) { /* ignore if columns exist */ }
+  try {
+    db.exec('ALTER TABLE patients ADD COLUMN first_name TEXT');
+    db.exec('ALTER TABLE patients ADD COLUMN last_name TEXT');
+    db.exec('UPDATE patients SET first_name = SUBSTR(patient_name, 1, INSTR(patient_name, \' \') - 1), last_name = SUBSTR(patient_name, INSTR(patient_name, \' \') + 1) WHERE INSTR(patient_name, \' \') > 0');
+    db.exec('UPDATE patients SET first_name = patient_name WHERE INSTR(patient_name, \' \') = 0');
+  } catch (e) { /* ignore if columns exist */ }
+
   if (exists) return exists.id;
   const id = uuid();
   db.prepare(
@@ -76,25 +91,25 @@ function upsertHospital() {
   return id;
 }
 
-function upsertDoctor(hospitalId, name, speciality, email) {
+function upsertDoctor(hospitalId, firstName, lastName, speciality, email) {
   const exists = db.prepare('SELECT id FROM doctors WHERE email = ?').get(email);
   if (exists) return exists.id;
   const id = uuid();
   db.prepare(
-    `INSERT INTO doctors (id, hospital_id, doctor_name, speciality, contact_number, email, password_hash)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, hospitalId, name, speciality, '+91 90000 00001', email, bcrypt.hashSync('Doctor@123', 10));
+    `INSERT INTO doctors (id, hospital_id, first_name, last_name, doctor_name, speciality, contact_number, email, password_hash)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, hospitalId, firstName, lastName, `${firstName} ${lastName}`, speciality, '+91 90000 00001', email, bcrypt.hashSync('Doctor@123', 10));
   return id;
 }
 
-function upsertPatient(hospitalId, name, phone) {
+function upsertPatient(hospitalId, firstName, lastName, phone) {
   const exists = db.prepare('SELECT id FROM patients WHERE hospital_id = ? AND contact_number = ?').get(hospitalId, phone);
   if (exists) return exists.id;
   const id = uuid();
   db.prepare(
-    `INSERT INTO patients (id, hospital_id, patient_name, contact_number, whatsapp_available)
-     VALUES (?, ?, ?, ?, 1)`
-  ).run(id, hospitalId, name, phone);
+    `INSERT INTO patients (id, hospital_id, first_name, last_name, patient_name, contact_number, whatsapp_available)
+     VALUES (?, ?, ?, ?, ?, ?, 1)`
+  ).run(id, hospitalId, firstName, lastName, `${firstName} ${lastName}`, phone);
   return id;
 }
 
@@ -112,19 +127,30 @@ function bookToken(hospitalId, doctorId, patientId, date, timeslot) {
 
 const superAdminId = upsertSuperAdmin();
 const hospitalId = upsertHospital();
-const doctor1 = upsertDoctor(hospitalId, 'Dr. Rohan Mehta', 'General Physician', 'rohan.mehta@sunrise-clinic.test');
-const doctor2 = upsertDoctor(hospitalId, 'Dr. Kavita Iyer', 'Pediatrician', 'kavita.iyer@sunrise-clinic.test');
+const doctor1 = upsertDoctor(hospitalId, 'Rohan', 'Mehta', 'General Physician', 'rohan.mehta@sunrise-clinic.test');
+const doctor2 = upsertDoctor(hospitalId, 'Kavita', 'Iyer', 'Pediatrician', 'kavita.iyer@sunrise-clinic.test');
 
 const patientNames = [
-  ['Amit Verma', '+91 91234 00001'], ['Priya Nair', '+91 91234 00002'], ['Suresh Rao', '+91 91234 00003'],
-  ['Neha Gupta', '+91 91234 00004'], ['Vikram Singh', '+91 91234 00005'], ['Deepa Joshi', '+91 91234 00006'],
+  ['Amit', 'Verma', '+91 91234 00001'], ['Priya', 'Nair', '+91 91234 00002'], ['Suresh', 'Rao', '+91 91234 00003'],
+  ['Neha', 'Gupta', '+91 91234 00004'], ['Vikram', 'Singh', '+91 91234 00005'], ['Deepa', 'Joshi', '+91 91234 00006'],
 ];
-const patientIds = patientNames.map(([n, p]) => upsertPatient(hospitalId, n, p));
+const patientIds = patientNames.map(([fname, lname, phone]) => upsertPatient(hospitalId, fname, lname, phone));
 
-// Create a default schedule for the demo doctors for today
+// Create a default schedule for the demo doctors for today and the next 7 days
 const demoTimeslots = ['09:00AM - 10:00AM', '10:00AM - 11:00AM', '11:00AM - 12:00PM'];
-db.prepare(`INSERT OR REPLACE INTO doctor_schedules (doctor_id, hospital_id, date, is_available, timeslots) VALUES (?, ?, ?, ?, ?)`).run(doctor1, hospitalId, today, 1, JSON.stringify(demoTimeslots));
-db.prepare(`INSERT OR REPLACE INTO doctor_schedules (doctor_id, hospital_id, date, is_available, timeslots) VALUES (?, ?, ?, ?, ?)`).run(doctor2, hospitalId, today, 1, JSON.stringify(demoTimeslots));
+const scheduleStmt = db.prepare(
+  `INSERT OR REPLACE INTO doctor_schedules
+   (doctor_id, hospital_id, date, is_available, timeslots, room_number)
+   VALUES (?, ?, ?, ?, ?, ?)`
+);
+
+for (let i = 0; i < 7; i++) {
+  const date = new Date();
+  date.setDate(date.getDate() + i);
+  const dateStr = date.toISOString().slice(0, 10);
+  scheduleStmt.run(doctor1, hospitalId, dateStr, 1, JSON.stringify(demoTimeslots), '23');
+  scheduleStmt.run(doctor2, hospitalId, dateStr, 1, JSON.stringify(demoTimeslots), '32');
+}
 
 // Set avg_minutes_per_patient for demo doctors to enable timeslot capacity calculation
 db.prepare(`UPDATE doctors SET avg_minutes_per_patient = 15 WHERE id = ?`).run(doctor1);

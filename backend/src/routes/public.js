@@ -16,7 +16,7 @@ router.get('/hospitals', (req, res) => {
 router.get('/hospitals/:id/doctors', (req, res) => {
   const date = req.query.date || new Date().toISOString().slice(0, 10);
   const doctors = db.prepare(
-    `SELECT id, doctor_name, speciality, avg_minutes_per_patient FROM doctors WHERE hospital_id = ? AND status = 'active'`
+    `SELECT id, first_name, last_name, doctor_name, speciality, avg_minutes_per_patient FROM doctors WHERE hospital_id = ? AND status = 'active'`
   ).all(req.params.id);
 
   const appointments = db.prepare(`SELECT doctor_id, timeslot, COUNT(*) as count FROM appointments WHERE hospital_id = ? AND appointment_date = ? AND status != 'cancelled' GROUP BY doctor_id, timeslot`).all(req.params.id, date);
@@ -30,8 +30,7 @@ router.get('/hospitals/:id/doctors', (req, res) => {
 
     const timeslotsWithAvailability = schedule?.timeslots ? JSON.parse(schedule.timeslots).map(slot => {
       const bookedCount = appointments.find(a => a.doctor_id === doctor.id && a.timeslot === slot)?.count || 0;
-      const available = maxPerSlot - bookedCount;
-      return { slot, available, isFull: available <= 0 };
+      return { slot, available: maxPerSlot - bookedCount, isFull: (maxPerSlot - bookedCount) <= 0 };
     }) : [];
 
     return {
@@ -50,12 +49,12 @@ router.get('/hospitals/:id/doctors', (req, res) => {
 router.post('/appointments', (req, res) => {
   const {
     hospital_id, doctor_id, appointment_date, timeslot,
-    patient_name, contact_number, email, address, whatsapp_available,
+    first_name, last_name, contact_number, email, address, whatsapp_available,
   } = req.body;
 
-  if (!hospital_id || !doctor_id || !appointment_date || !patient_name || !contact_number || !timeslot) {
+  if (!hospital_id || !doctor_id || !appointment_date || !first_name || !last_name || !contact_number || !timeslot) {
     return res.status(400).json({
-      error: 'hospital_id, doctor_id, appointment_date, patient_name, contact_number, and timeslot are required',
+      error: 'All fields are required, including first name, last name, and timeslot.',
     });
   }
 
@@ -68,10 +67,11 @@ router.post('/appointments', (req, res) => {
 
   if (!patient) {
     const patientId = uuid();
+    const patient_name = `${first_name} ${last_name}`;
     db.prepare(
-      `INSERT INTO patients (id, hospital_id, patient_name, contact_number, email, address, whatsapp_available)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).run(patientId, hospital_id, patient_name, contact_number, email || null, address || null, whatsapp_available ? 1 : 0);
+      `INSERT INTO patients (id, hospital_id, first_name, last_name, patient_name, contact_number, email, address, whatsapp_available)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(patientId, hospital_id, first_name, last_name, patient_name, contact_number, email || null, address || null, whatsapp_available ? 1 : 0);
     patient = { id: patientId };
   }
 

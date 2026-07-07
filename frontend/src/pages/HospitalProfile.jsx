@@ -146,6 +146,11 @@ export default function HospitalProfile() {
             <div className="font-semibold text-slate-900 mb-2">Clinic ID</div>
             <div className="font-mono text-ink break-all">{form.id}</div>
             <div className="mt-2">Use this ID for Display Control login and clinic sharing.</div>
+            <div className="mt-4 border-t border-slate-200 pt-4">
+              <div className="font-semibold text-slate-900 mb-2">Account Activation Date</div>
+              <div className="text-ink">{form.activation_date ? new Date(form.activation_date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</div>
+              <div className="mt-2">This is the date your clinic account was activated.</div>
+            </div>
           </div>
         </div>
 

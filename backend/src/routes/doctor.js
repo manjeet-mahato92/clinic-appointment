@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
+import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -17,7 +18,7 @@ const hid = (req) => req.user.hospitalId;
 router.get('/appointments', (req, res) => {
   const date = req.query.date || new Date().toISOString().slice(0, 10);
   const rows = db.prepare(
-    `SELECT a.*, p.patient_name, p.contact_number AS patient_contact, p.email AS patient_email,
+    `SELECT a.*, p.first_name, p.last_name, p.patient_name, p.contact_number AS patient_contact, p.email AS patient_email,
             p.address AS patient_address, p.whatsapp_available
      FROM appointments a
      JOIN patients p ON p.id = a.patient_id
@@ -85,7 +86,7 @@ router.get('/hospital', (req, res) => {
 // Get current doctor's profile
 router.get('/profile', (req, res) => {
   const doctor = db.prepare(
-    `SELECT id, hospital_id, doctor_name, speciality, contact_number, email, age, gender, district, state, pincode, experience_years, certifications, photo_url, avg_minutes_per_patient, status
+    `SELECT id, hospital_id, first_name, last_name, doctor_name, speciality, contact_number, email, age, gender, district, state, pincode, experience_years, certifications, photo_url, avg_minutes_per_patient, status
      FROM doctors WHERE id = ?`
   ).get(did(req));
   if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
@@ -94,7 +95,7 @@ router.get('/profile', (req, res) => {
 
 // Update current doctor's profile
 router.patch('/profile', (req, res) => {
-  const fields = ['doctor_name', 'speciality', 'contact_number', 'email', 'age', 'gender', 'district', 'state', 'pincode', 'experience_years', 'avg_minutes_per_patient'];
+  const fields = ['first_name', 'last_name', 'speciality', 'contact_number', 'email', 'age', 'gender', 'district', 'state', 'pincode', 'experience_years', 'avg_minutes_per_patient'];
   const updates = [];
   const params = { id: did(req) };
 
@@ -115,6 +116,11 @@ router.patch('/profile', (req, res) => {
     params.certifications = req.body.certifications ? JSON.stringify(req.body.certifications) : null;
   }
 
+  if (req.body.first_name || req.body.last_name) {
+    updates.push('doctor_name = @first_name || \' \' || @last_name');
+    params.first_name = req.body.first_name || db.prepare('SELECT first_name FROM doctors WHERE id = ?').get(did(req)).first_name;
+    params.last_name = req.body.last_name || db.prepare('SELECT last_name FROM doctors WHERE id = ?').get(did(req)).last_name;
+  }
   if (!updates.length) {
     return res.status(400).json({ error: 'No fields to update' });
   }
@@ -127,8 +133,25 @@ router.patch('/profile', (req, res) => {
     return res.status(500).json({ error: 'Failed to update profile. The email may already be in use.' });
   }
 
-  const updated = db.prepare('SELECT id, hospital_id, doctor_name, speciality, contact_number, email, age, gender, district, state, pincode, experience_years, certifications, photo_url, avg_minutes_per_patient, status FROM doctors WHERE id = ?').get(did(req));
+  const updated = db.prepare('SELECT id, hospital_id, first_name, last_name, doctor_name, speciality, contact_number, email, age, gender, district, state, pincode, experience_years, certifications, photo_url, avg_minutes_per_patient, status FROM doctors WHERE id = ?').get(did(req));
   res.json(updated);
+});
+
+// Change doctor's own password
+router.patch('/profile/password', (req, res) => {
+  const { current_password, new_password } = req.body;
+  if (!current_password || !new_password) {
+    return res.status(400).json({ error: 'Current and new passwords are required.' });
+  }
+
+  const doctor = db.prepare('SELECT password_hash FROM doctors WHERE id = ?').get(did(req));
+  if (!doctor || !bcrypt.compareSync(current_password, doctor.password_hash)) {
+    return res.status(401).json({ error: 'Current password is not correct.' });
+  }
+
+  const new_password_hash = bcrypt.hashSync(new_password, 10);
+  db.prepare('UPDATE doctors SET password_hash = ? WHERE id = ?').run(new_password_hash, did(req));
+  res.json({ message: 'Password updated successfully.' });
 });
 
 // Upload profile photo

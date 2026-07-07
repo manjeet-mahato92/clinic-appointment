@@ -58,6 +58,18 @@ CREATE TABLE IF NOT EXISTS doctors (
   created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Daily doctor availability. Room assignments can change from one day to another.
+CREATE TABLE IF NOT EXISTS doctor_schedules (
+  doctor_id    TEXT NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+  hospital_id  TEXT NOT NULL REFERENCES hospitals(id) ON DELETE CASCADE,
+  date         TEXT NOT NULL,
+  is_available INTEGER NOT NULL DEFAULT 0,
+  timeslots    TEXT,
+  room_number  TEXT,
+  delay_minutes INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (doctor_id, date)
+);
+
 CREATE TABLE IF NOT EXISTS patients (
   id                TEXT PRIMARY KEY,
   hospital_id       TEXT NOT NULL REFERENCES hospitals(id) ON DELETE CASCADE,
