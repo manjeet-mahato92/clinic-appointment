@@ -9,6 +9,8 @@ import SuperAdminCashPayments from './pages/SuperAdminCashPayments.jsx';
 import Login from './pages/Login.jsx';
 import PatientBooking from './pages/PatientBooking.jsx';
 import NotFound from './pages/NotFound.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 
 import SuperAdminOverview from './pages/SuperAdminOverview.jsx';
 import SuperAdminHospitals from './pages/SuperAdminHospitals.jsx';
@@ -41,6 +43,8 @@ export default function App() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/book" element={<PatientBooking />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/super-admin/login" element={<SuperAdminLogin />} />
 
       <Route path="/super-admin" element={<ProtectedRoute role="super_admin"><SuperAdminOverview /></ProtectedRoute>} />

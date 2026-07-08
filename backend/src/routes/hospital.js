@@ -124,35 +124,6 @@ const safeJsonParse = (jsonString, fallback = []) => {
   }
 };
 
-const csvCell = (value) => {
-  if (value === null || value === undefined) return '';
-  const stringValue = String(value);
-  return /[",\r\n]/.test(stringValue) ? `"${stringValue.replace(/"/g, '""')}"` : stringValue;
-};
-
-const patientExportColumns = [
-  ['First Name', 'first_name'],
-  ['Last Name', 'last_name'],
-  ['Contact Number', 'contact_number'],
-  ['Email', 'email'],
-  ['Age', 'age'],
-  ['Gender', 'gender'],
-  ['Address', 'address'],
-  ['District', 'district'],
-  ['State', 'state'],
-  ['Pincode', 'pincode'],
-  ['WhatsApp Available', 'whatsapp_available'],
-];
-
-const toCsv = (rows, columns) => {
-  const header = columns.map(([label]) => csvCell(label)).join(',');
-  const body = rows.map((row) => columns.map(([, key]) => csvCell(row[key])).join(','));
-  return [header, ...body].join('\r\n');
-};
-
-const bodyHas = (body, key) => Object.prototype.hasOwnProperty.call(body || {}, key);
-const notesFromBody = (body, fallback) => (bodyHas(body, 'notes') ? (body.notes || null) : fallback);
-
 // ---------- Manage Doctors ----------
 
 router.get('/doctors', (req, res) => {
@@ -394,6 +365,35 @@ router.get('/patients/export', (req, res) => {
      FROM patients WHERE hospital_id = ? ORDER BY created_at DESC`
   ).all(hid(req));
 
+  const patientExportColumns = [
+    ['First Name', 'first_name'],
+    ['Last Name', 'last_name'],
+    ['Contact Number', 'contact_number'],
+    ['Email', 'email'],
+    ['Age', 'age'],
+    ['Gender', 'gender'],
+    ['Address', 'address'],
+    ['District', 'district'],
+    ['State', 'state'],
+    ['Pincode', 'pincode'],
+    ['WhatsApp Available', 'whatsapp_available'],
+  ];
+  const csvCell = (value) => (value === null || value === undefined) ? '' : /[",\r\n]/.test(String(value)) ? `"${String(value).replace(/"/g, '""')}"` : String(value);
+  const toCsv = (rows, columns) => [columns.map(([label]) => csvCell(label)).join(','), ...rows.map(row => columns.map(([, key]) => csvCell(row[key])).join(','))].join('\r\n');
+
+  const csv = toCsv(patients, patientExportColumns);
+  res.header('Content-Type', 'text/csv; charset=utf-8');
+  res.attachment(`patients-${hid(req)}-${new Date().toISOString().slice(0, 10)}.csv`);
+  res.send(csv);
+});
+
+router.get('/patients/export-csv', (req, res) => {
+  const patients = db.prepare(
+    `SELECT first_name, last_name, contact_number, email, age, gender, address, district, state, pincode,
+            (CASE WHEN whatsapp_available = 1 THEN 'Yes' ELSE 'No' END) as whatsapp_available
+     FROM patients WHERE hospital_id = ? ORDER BY created_at DESC`
+  ).all(hid(req));
+
   const csv = toCsv(patients, patientExportColumns);
   res.header('Content-Type', 'text/csv; charset=utf-8');
   res.attachment(`patients-${hid(req)}-${new Date().toISOString().slice(0, 10)}.csv`);
@@ -490,6 +490,23 @@ router.get('/insights', (req, res) => {
      ORDER BY count DESC`
   ).all(hid(req), startDate, endDate);
 
+  const timeslotDistribution = db.prepare(
+    `SELECT timeslot, COUNT(*) as count
+     FROM appointments
+     WHERE hospital_id = ? AND appointment_date BETWEEN ? AND ? AND status != 'cancelled'
+     GROUP BY timeslot
+     HAVING timeslot IS NOT NULL
+     ORDER BY timeslot ASC`
+  ).all(hid(req), startDate, endDate);
+
+  const patientGrowth = db.prepare(
+    `SELECT DATE(created_at) as date, COUNT(id) as count
+     FROM patients
+     WHERE hospital_id = ? AND DATE(created_at) BETWEEN ? AND ?
+     GROUP BY date
+     ORDER BY date ASC`
+  ).all(hid(req), startDate, endDate);
+
 
   res.json({
     ...insights,
@@ -500,6 +517,8 @@ router.get('/insights', (req, res) => {
     dailyAppointments,
     statusBreakdown,
     doctorWorkload,
+    timeslotDistribution,
+    patientGrowth,
   });
 });
 
@@ -641,7 +660,7 @@ router.post('/appointments/next', (req, res) => {
   ).get(doctor_id, appointmentDate);
 
   if (current) {
-    db.prepare(`UPDATE appointments SET status = 'completed', notes = ?, updated_at = datetime('now') WHERE id = ?`).run(notesFromBody(req.body, current.notes), current.id);
+    db.prepare(`UPDATE appointments SET status = 'completed', notes = ?, updated_at = datetime('now') WHERE id = ?`).run(req.body.notes || current.notes, current.id);
   }
 
   const next = db.prepare(

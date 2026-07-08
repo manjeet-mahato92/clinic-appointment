@@ -173,7 +173,7 @@ export default function DisplayBoardCards() {
             <h1 className="text-3xl font-black uppercase tracking-wide md:text-5xl">OPD Appointment Display</h1>
             <div className="mt-2 flex flex-wrap items-center justify-center gap-x-8 gap-y-1 text-base font-bold text-white/90 md:text-xl">
               <span>Real-time Queue Status</span>
-              <span>{clock.toLocaleDateString(undefined, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</span>
+              <span>{clock.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
               <span>{clock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}</span>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import db from '../db/index.js';
+import { v4 as uuid } from 'uuid';
 import { createToken } from '../middleware/auth.js';
 
 const router = Router();
@@ -18,6 +19,62 @@ router.post('/super-admin/login', (req, res) => {
   const token = createToken(user);
   res.json({ token, user });
 });
+
+router.post('/forgot-password', (req, res) => {
+  const { email, role } = req.body;
+  if (!email || !role || !['hospital', 'doctor'].includes(role)) {
+    return res.status(400).json({ error: 'A valid email and role are required.' });
+  }
+
+  const table = role === 'hospital' ? 'hospitals' : 'doctors';
+  const user = db.prepare(`SELECT id FROM ${table} WHERE email = ?`).get(email);
+
+  if (user) {
+    const token = uuid();
+    const expires_at = new Date(Date.now() + 3600 * 1000).toISOString(); // 1 hour expiry
+
+    db.prepare(
+      `INSERT INTO password_resets (token, user_id, user_role, expires_at) VALUES (?, ?, ?, ?)`
+    ).run(token, user.id, role, expires_at);
+
+    // In a real app, you would email this link. For now, we log it.
+    const resetLink = `http://localhost:5173/reset-password?token=${token}`;
+    console.log('--------------------------------------------------');
+    console.log(`Password reset link for ${email}:`);
+    console.log(resetLink);
+    console.log('--------------------------------------------------');
+  }
+
+  // Always return a success message to prevent email enumeration attacks.
+  res.json({ message: 'If an account with that email exists, a password reset link has been generated.' });
+});
+
+router.post('/reset-password', (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) {
+    return res.status(400).json({ error: 'Token and new password are required.' });
+  }
+
+  const resetRequest = db.prepare('SELECT * FROM password_resets WHERE token = ?').get(token);
+
+  if (!resetRequest || new Date() > new Date(resetRequest.expires_at)) {
+    if (resetRequest) db.prepare('DELETE FROM password_resets WHERE token = ?').run(token);
+    return res.status(400).json({ error: 'This reset token is invalid or has expired.' });
+  }
+
+  const table = resetRequest.user_role === 'hospital' ? 'hospitals' : 'doctors';
+  const new_password_hash = bcrypt.hashSync(password, 10);
+
+  try {
+    db.prepare(`UPDATE ${table} SET password_hash = ? WHERE id = ?`).run(new_password_hash, resetRequest.user_id);
+    db.prepare('DELETE FROM password_resets WHERE token = ?').run(token);
+    res.json({ message: 'Password has been reset successfully.' });
+  } catch (err) {
+    console.error('Error resetting password:', err);
+    res.status(500).json({ error: 'An unexpected error occurred while resetting the password.' });
+  }
+});
+
 
 router.post('/hospital/login', (req, res) => {
   const { email, password } = req.body;

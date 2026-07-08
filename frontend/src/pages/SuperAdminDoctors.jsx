@@ -7,9 +7,14 @@ import { STATES, LOCATIONS } from '../utils/locations.js';
 
 export default function SuperAdminDoctors() {
   const [doctors, setDoctors] = useState([]);
+  const [hospitals, setHospitals] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({ state: '', district: '' });
+  const [filters, setFilters] = useState({ state: '', district: '', hospital_id: '' });
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/super-admin/hospitals').then((r) => setHospitals(r.data));
+  }, []);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -27,13 +32,13 @@ export default function SuperAdminDoctors() {
   const filteredDoctors = useMemo(() => {
     // Filtering is now done on the backend, this memo is for potential future client-side needs.
     // For now, it just returns the data as-is from the API.
-    if (!searchQuery && !filters.state && !filters.district) {
+    if (!searchQuery && !filters.state && !filters.district && !filters.hospital_id) {
       return doctors;
     }
     // The backend performs the filtering, so we can just return the result.
     // A more complex implementation might do client-side filtering on top of backend results.
     return doctors;
-  }, [doctors, searchQuery, filters]);
+  }, [doctors, searchQuery, filters.state, filters.district, filters.hospital_id]);
 
   return (
     <Layout title="Super Admin" navItems={superAdminNav}>
@@ -45,13 +50,17 @@ export default function SuperAdminDoctors() {
       </div>
 
       <div className="card p-4 mb-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <input
-            className="input lg:col-span-2"
+            className="input"
             placeholder="Search by doctor, speciality, hospital, or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          <select className="input" value={filters.hospital_id} onChange={setFilter('hospital_id')}>
+            <option value="">All Hospitals</option>
+            {hospitals.map(h => <option key={h.id} value={h.id}>{h.hospital_name}</option>)}
+          </select>
           <select className="input" value={filters.state} onChange={setFilter('state')}>
             <option value="">All States</option>
             {STATES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -62,7 +71,7 @@ export default function SuperAdminDoctors() {
           </select>
         </div>
         <div className="flex flex-wrap gap-3 mt-4 items-center">
-          <button className="btn-secondary" onClick={() => { setSearchQuery(''); setFilters({ state: '', district: '' }); }}>Clear Filters</button>
+          <button className="btn-secondary" onClick={() => { setSearchQuery(''); setFilters({ state: '', district: '', hospital_id: '' }); }}>Clear Filters</button>
         </div>
       </div>
 

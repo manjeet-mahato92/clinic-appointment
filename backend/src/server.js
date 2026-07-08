@@ -28,6 +28,7 @@ app.use('/uploads', express.static(uploadsDir));
 
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'clinic-token-backend' }));
 
+import apiRouter from './routes/index.js';
 app.use('/api/auth', authRoutes);
 app.use('/api/super-admin', superAdminRoutes);
 app.use('/api/hospital', hospitalRoutes);

@@ -92,4 +92,14 @@ for (const column of patientExtras) {
   }
 }
 
+const resetColumns = db.prepare('PRAGMA table_info(password_resets)').all().map((row) => row.name);
+if (!resetColumns.length) {
+  db.exec(`CREATE TABLE password_resets (
+    token TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    user_role TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+  )`);
+}
+
 export default db;

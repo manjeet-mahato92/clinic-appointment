@@ -81,7 +81,14 @@ export default function Login() {
               </div>
             )}
             <div>
-              <label className="label">Password</label>
+              <div className="flex items-center justify-between gap-3">
+                <label className="label">Password</label>
+                {role !== 'display' && (
+                  <Link to="/forgot-password" className="text-xs font-semibold text-clinical hover:underline">
+                    Forgot / Reset password?
+                  </Link>
+                )}
+              </div>
               <input type="password" className="input" value={form.password} onChange={set('password')} required />
             </div>
 

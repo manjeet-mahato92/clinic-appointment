@@ -66,7 +66,7 @@ export default function PrintableToken() {
         </div>
         <div className="flex justify-between">
           <span className="font-semibold">Date:</span>
-          <span>{new Date(appointment.appointment_date + 'T00:00:00').toLocaleDateString()}</span>
+          <span>{new Date(appointment.appointment_date + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}</span>
         </div>
       </div>
     </div>

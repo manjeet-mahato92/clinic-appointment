@@ -5,6 +5,7 @@ import Modal from '../components/Modal.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import { hospitalNav } from '../navConfigs.js';
 import api from '../api/client.js';
+import ActionDropdown from '../components/ActionDropdown.jsx';
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -17,10 +18,12 @@ export default function HospitalAppointments() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('asc');
   const [searchParams] = useSearchParams();
+  const [filtersVisible, setFiltersVisible] = useState(true);
 
   const [bookOpen, setBookOpen] = useState(false);
   const [bookForm, setBookForm] = useState({ doctor_id: '', patient_id: '', timeslot: '' });
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
+  const [patientSearch, setPatientSearch] = useState('');
   const [newDate, setNewDate] = useState('');
   const [newTimeslot, setNewTimeslot] = useState('');
   const [error, setError] = useState('');
@@ -45,12 +48,18 @@ export default function HospitalAppointments() {
     }
   }, [searchParams]);
 
+  const closeBookingModal = () => {
+    setBookOpen(false);
+    setPatientSearch('');
+    setError('');
+  };
+
   const bookToken = async (e) => {
     e.preventDefault();
     setError('');
     try {
       await api.post('/hospital/appointments', { ...bookForm, appointment_date: date });
-      setBookOpen(false);
+      closeBookingModal();
       setBookForm({ doctor_id: '', patient_id: '', timeslot: '' });
       load();
     } catch (err) {
@@ -127,82 +136,87 @@ export default function HospitalAppointments() {
     });
   }, [rescheduleTarget, newDate, appointments, doctors]);
 
+  const patientSearchResults = useMemo(() => {
+    if (!patientSearch) return [];
+    const lowerQuery = patientSearch.toLowerCase();
+    return patients.filter(p =>
+      p.patient_name.toLowerCase().includes(lowerQuery) ||
+      p.contact_number.includes(lowerQuery)
+    ).slice(0, 5);
+  }, [patientSearch, patients]);
+
+  const handleSelectPatient = (patient) => {
+    setBookForm(f => ({ ...f, patient_id: patient.id }));
+    setPatientSearch('');
+  };
+  const selectedPatientForBooking = useMemo(() => patients.find(p => p.id === bookForm.patient_id), [bookForm.patient_id, patients]);
+
   return (
     <Layout title="Hospital / Clinic" navItems={hospitalNav}>
-      <div className="flex flex-col gap-6 mb-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold">Reception Dashboard for {new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h1>
-            <p className="text-slate-soft mt-1">Manage today’s appointments, queue status, and quick patient actions.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button className="btn-secondary" type="button" onClick={() => window.open('/display/select-doctor', '_blank')}>
-              Open Display
-            </button>
-            <button className="btn-primary" onClick={() => setBookOpen(true)}>+ Book Token</button>
-          </div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Reception Dashboard</h1>
+          <p className="text-slate-soft">Manage appointments, queue status, and patient actions for today.</p>
         </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="card p-5">
-            <div className="text-xs uppercase tracking-wide text-slate-soft mb-2">Scheduled</div>
-            <div className="text-3xl font-semibold text-ink">{summary.scheduled}</div>
-            <div className="text-slate-soft text-sm mt-2">Tokens waiting for service today.</div>
-          </div>
-          <div className="card p-5">
-            <div className="text-xs uppercase tracking-wide text-slate-soft mb-2">In Progress</div>
-            <div className="text-3xl font-semibold text-ink">{summary.inProgress}</div>
-            <div className="text-slate-soft text-sm mt-2">Patients currently being served.</div>
-          </div>
-          <div className="card p-5">
-            <div className="text-xs uppercase tracking-wide text-slate-soft mb-2">Completed</div>
-            <div className="text-3xl font-semibold text-ink">{summary.completed}</div>
-            <div className="text-slate-soft text-sm mt-2">Tokens closed today.</div>
-          </div>
-          <div className="card p-5">
-            <div className="text-xs uppercase tracking-wide text-slate-soft mb-2">Cancelled</div>
-            <div className="text-3xl font-semibold text-ink">{summary.cancelled}</div>
-            <div className="text-slate-soft text-sm mt-2">Tokens removed from today’s queue.</div>
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button className="btn-secondary" type="button" onClick={() => window.open('/display/select-doctor', '_blank')}>
+            Open Display
+          </button>
+          <button className="btn-primary" onClick={() => setBookOpen(true)}>+ Book Token</button>
         </div>
       </div>
 
-      <div className="card p-5 mb-6">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="space-y-2">
-            <label className="label">Date</label>
-            <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <label className="label">Doctor</label>
-            <select className="input" value={doctorFilter} onChange={(e) => setDoctorFilter(e.target.value)}>
-              <option value="">All doctors</option>
-              {doctors.map((d) => (
-                <option key={d.id} value={d.id}>{d.doctor_name} — {d.speciality || 'General'}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="label">Status</label>
-            <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="all">All Statuses</option>
-              <option value="scheduled">Upcoming</option>
-              <option value="in_progress">Running</option>
-              <option value="completed">Closed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="label">Sort by Token</label>
-            <select className="input" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
-              <option value="asc">Ascending</option>
-              <option value="desc">Descending</option>
-            </select>
-          </div>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
+        <StatCard icon="🗓️" label="Scheduled" value={summary.scheduled} />
+        <StatCard icon="🏃" label="In Progress" value={summary.inProgress} />
+        <StatCard icon="✅" label="Completed" value={summary.completed} />
+        <StatCard icon="❌" label="Cancelled" value={summary.cancelled} />
       </div>
 
-      <div className="card overflow-hidden">
+      <div className="card mb-6">
+        <div className="p-4 flex justify-between items-center border-b border-slate-100">
+          <h3 className="font-semibold text-ink">Filters</h3>
+          <button
+            type="button"
+            onClick={() => setFiltersVisible(!filtersVisible)}
+            className="text-sm font-semibold text-clinical hover:underline"
+          >
+            {filtersVisible ? 'Hide' : 'Show'}
+          </button>
+        </div>
+        {filtersVisible && (
+          <div className="p-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="space-y-1">
+              <label className="label text-xs">Date</label>
+              <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="label text-xs">Doctor</label>
+              <select className="input" value={doctorFilter} onChange={(e) => setDoctorFilter(e.target.value)}>
+                <option value="">All doctors</option>
+                {doctors.map((d) => (
+                  <option key={d.id} value={d.id}>{d.doctor_name} — {d.speciality || 'General'}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="label text-xs">Status</label>
+              <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="all">All Statuses</option>
+                <option value="scheduled">Upcoming</option>
+                <option value="in_progress">Running</option>
+                <option value="completed">Closed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button className="btn-secondary text-sm w-full" onClick={() => { setDate(todayStr()); setDoctorFilter(''); setStatusFilter('all'); }}>Reset Filters</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="card p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-paper text-slate-soft text-xs uppercase tracking-wide">
@@ -216,55 +230,36 @@ export default function HospitalAppointments() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {filteredAppointments.map((a) => (
-                <tr key={a.id} className="hover:bg-slate-50">
-                  <td className="px-5 py-4 align-top font-mono font-bold text-ink">#{a.token_number}</td>
-                  <td className="px-5 py-4 align-top">
-                    <div className="font-medium text-ink">{a.patient_first_name} {a.patient_last_name}</div>
-                    <div className="text-slate-soft text-xs mt-1">{a.patient_contact}</div>
-                  </td>
-                  <td className="px-5 py-4 align-top text-slate-soft">{a.doctor_name}</td>
-                  <td className="px-5 py-4 align-top"><StatusBadge status={a.status} /></td>
-                  <td className="px-5 py-4 align-top text-slate-soft">{a.timeslot || '—'}</td>
-                  <td className="px-5 py-4 align-top text-right flex flex-wrap justify-end gap-2">
-                    <Link
-                      to={`/hospital/appointments/${a.id}/print`}
-                      target="_blank"
-                      className="btn-sm bg-white text-ink border border-slate-200 hover:bg-slate-50"
-                    >
-                      Print
-                    </Link>
-                    {a.whatsapp_available === 1 && (
-                      <a
-                        href={whatsappLink(a.patient_contact, a.patient_name)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn-sm bg-white text-clinical border border-clinical hover:bg-clinical/10"
-                      >
-                        WhatsApp
-                      </a>
-                    )}
-                    {a.status === 'scheduled' && (
-                      <button
-                        type="button"
-                        className="btn-sm bg-slate-100 text-ink hover:bg-slate-200"
-                        onClick={() => { setRescheduleTarget(a.id); setNewDate(date); }}
-                      >
-                        Reschedule
-                      </button>
-                    )}
-                    {a.status !== 'cancelled' && a.status !== 'completed' && (
-                      <button
-                        type="button"
-                        className="btn-sm bg-white text-danger border border-danger hover:bg-danger/10"
-                        onClick={() => cancel(a.id)}
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {filteredAppointments.map((a) => {
+                const actions = [
+                  { label: 'Print Token', href: `/hospital/appointments/${a.id}/print`, target: '_blank' },
+                ];
+                if (a.whatsapp_available === 1) {
+                  actions.push({ label: 'WhatsApp Patient', href: whatsappLink(a.patient_contact, a.patient_name), target: '_blank' });
+                }
+                if (a.status === 'scheduled') {
+                  actions.push({ label: 'Reschedule', onClick: () => { setRescheduleTarget(a.id); setNewDate(date); } });
+                }
+                if (a.status !== 'cancelled' && a.status !== 'completed') {
+                  actions.push({ label: 'Cancel Appointment', onClick: () => cancel(a.id), isDanger: true });
+                }
+
+                return (
+                  <tr key={a.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-4 align-top font-mono font-bold text-ink">#{a.token_number}</td>
+                    <td className="px-5 py-4 align-top">
+                      <div className="font-medium text-ink">{a.patient_first_name} {a.patient_last_name}</div>
+                      <div className="text-slate-soft text-xs mt-1">{a.patient_contact}</div>
+                    </td>
+                    <td className="px-5 py-4 align-top text-slate-soft">{a.doctor_name}</td>
+                    <td className="px-5 py-4 align-top"><StatusBadge status={a.status} /></td>
+                    <td className="px-5 py-4 align-top text-slate-soft">{a.timeslot || '—'}</td>
+                    <td className="px-5 py-4 align-top text-right">
+                      <ActionDropdown items={actions} />
+                    </td>
+                  </tr>
+                );
+              })}
               {!filteredAppointments.length && (
                 <tr>
                   <td colSpan={6} className="text-center px-5 py-10 text-slate-soft">
@@ -277,7 +272,13 @@ export default function HospitalAppointments() {
         </div>
       </div>
 
-      <Modal open={bookOpen} onClose={() => setBookOpen(false)} title={`Book Token for ${date}`}>
+      <Modal
+        open={bookOpen}
+        onClose={closeBookingModal}
+        title={`Book Token for ${new Date(date + 'T00:00:00').toLocaleDateString(undefined, {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        })}`}
+      >
         <form onSubmit={bookToken} className="space-y-4">
           <div>
             <label className="label">Doctor</label>
@@ -312,17 +313,31 @@ export default function HospitalAppointments() {
           </div>
           <div>
             <label className="label">Patient</label>
-            <select
-              className="input"
-              value={bookForm.patient_id}
-              onChange={(e) => setBookForm((f) => ({ ...f, patient_id: e.target.value }))}
-              required
-            >
-              <option value="">Select a patient</option>
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>{p.patient_name} — {p.contact_number}</option>
-              ))}
-            </select>
+            {selectedPatientForBooking ? (
+              <div className="flex items-center justify-between rounded-lg bg-slate-100 p-3">
+                <div className="font-medium text-ink">{selectedPatientForBooking.patient_name}</div>
+                <button type="button" onClick={() => setBookForm(f => ({ ...f, patient_id: '' }))} className="text-sm text-clinical hover:underline">Change</button>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Search by name or phone..."
+                  value={patientSearch}
+                  onChange={(e) => setPatientSearch(e.target.value)}
+                />
+                {patientSearchResults.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {patientSearchResults.map(p => (
+                      <button key={p.id} type="button" onClick={() => handleSelectPatient(p)} className="block w-full text-left px-4 py-2 text-sm text-ink hover:bg-slate-50">
+                        {p.patient_name} <span className="text-slate-soft ml-2">{p.contact_number}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <p className="text-xs text-slate-soft">No patient yet? Add them first from the Patients tab.</p>
           {error && <p className="text-sm text-danger">{error}</p>}
@@ -360,3 +375,13 @@ export default function HospitalAppointments() {
     </Layout>
   );
 }
+
+const StatCard = ({ icon, label, value }) => (
+  <div className="card p-5 flex items-start gap-4">
+    <div className="text-3xl">{icon}</div>
+    <div>
+      <div className="text-3xl font-semibold text-ink">{value}</div>
+      <div className="text-sm text-slate-soft mt-1">{label}</div>
+    </div>
+  </div>
+);

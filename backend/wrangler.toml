@@ -1,0 +1,11 @@
+name = "clinic-token-api"
+main = "src/server.js"
+compatibility_date = "2024-07-15"
+
+# This creates a binding to your D1 database.
+# The binding 'DB' will be available on the 'env' object in your worker code.
+[[d1_databases]]
+binding = "DB"
+database_name = "clinic-db"
+database_id = "<YOUR_DATABASE_ID>" # This will be filled in automatically later
+preview_database_id = "clinic-db-preview"
