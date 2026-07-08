@@ -1,3 +1,8 @@
+# Migration stub only.
+# The current backend uses Express + better-sqlite3 and cannot be deployed to
+# Cloudflare Workers without migrating database access to D1 and replacing
+# local filesystem uploads.
+
 name = "clinic-token-api"
 main = "src/server.js"
 compatibility_date = "2024-07-15"

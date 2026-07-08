@@ -16,8 +16,13 @@ dotenv.config();
 
 const app = express();
 
-// During local development allow all origins so the dev server port can vary (Vite may pick a different port)
-app.use(cors());
+const corsOrigin = process.env.CORS_ORIGIN;
+const corsOptions = corsOrigin
+  ? { origin: corsOrigin.split(',').map((origin) => origin.trim()).filter(Boolean) }
+  : undefined;
+
+// Local development allows all origins; production can restrict via CORS_ORIGIN.
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
 

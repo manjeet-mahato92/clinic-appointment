@@ -74,6 +74,10 @@ frontend/
     api/            Axios client with auth header injection
 ```
 
+## Deployment
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the Cloudflare-ready path. In short: deploy `frontend/` to Cloudflare Pages, and deploy the current Express/SQLite `backend/` to a Node host with persistent storage. A full Cloudflare backend requires migrating SQLite access to D1.
+
 ## Notes & next steps
 
 - Images/logos/banners are stored as URLs (paste any image link) rather than file uploads — wire up S3/Cloudinary later if you need real uploads.
