@@ -16,11 +16,12 @@ dotenv.config();
 
 const app = express();
 
-// Configure CORS to allow requests from the frontend's domain.
-// The origin is set via the CORS_ORIGIN environment variable on your hosting platform (e.g., Railway).
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*' // Fallback to all origins for local dev
-}));
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : undefined;
+
+// Local development allows all origins; production can restrict via CORS_ORIGIN.
+app.use(cors(corsOrigins ? { origin: corsOrigins } : undefined));
 app.use(express.json());
 app.use(morgan('dev'));
 
