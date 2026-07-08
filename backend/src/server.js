@@ -16,12 +16,23 @@ dotenv.config();
 
 const app = express();
 
+const normalizeOrigin = (origin) => origin?.replace(/\/$/, '');
 const corsOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
+  ? process.env.CORS_ORIGIN.split(',')
+    .map((origin) => normalizeOrigin(origin.trim()))
+    .filter(Boolean)
+  : undefined;
+const corsOptions = corsOrigins
+  ? {
+      origin(origin, callback) {
+        if (!origin) return callback(null, true);
+        return callback(null, corsOrigins.includes(normalizeOrigin(origin)) ? origin : false);
+      },
+    }
   : undefined;
 
 // Local development allows all origins; production can restrict via CORS_ORIGIN.
-app.use(cors(corsOrigins ? { origin: corsOrigins } : undefined));
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
 
