@@ -37,6 +37,8 @@ const formatDoctorName = (queue) => {
   return /^dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
 };
 
+const delayLabel = (minutes) => `Doctor is late by ${minutes} Minutes`;
+
 const getQueueState = (queue) => {
   const next = Array.isArray(queue.next) ? queue.next : [];
   const isAvailable = Number(queue.is_available) === 1;
@@ -201,11 +203,13 @@ export default function DisplayBoardCards() {
               const state = getQueueState(queue);
               const nextTokens = state.nextTokens.map((appointment) => formatToken(appointment.token_number)).join(', ');
               const delayMinutes = Number(queue.delay_minutes) || 0;
+              const isDelayed = delayMinutes > 0;
+              const statusColor = isDelayed ? '#dc2626' : state.muted ? '#64748b' : accent;
 
               return (
                 <article
                   key={queue.id}
-                  className={`flex min-h-[248px] flex-col rounded-lg border bg-white shadow-sm ${state.muted ? 'border-slate-300 opacity-90' : 'border-slate-200'}`}
+                  className={`flex min-h-[248px] flex-col rounded-lg border bg-white shadow-sm ${isDelayed ? 'border-red-300' : state.muted ? 'border-slate-300 opacity-90' : 'border-slate-200'}`}
                 >
                   <div className="flex items-start gap-3 px-4 pt-4">
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md text-3xl font-black text-white" style={{ backgroundColor: state.muted ? '#64748b' : accent }}>
@@ -216,6 +220,11 @@ export default function DisplayBoardCards() {
                         {formatDoctorName(queue)}
                       </h2>
                       <p className="truncate text-lg font-semibold text-slate-700">{queue.speciality || 'General clinic'}</p>
+                      {isDelayed && (
+                        <div className="mt-2 inline-flex max-w-full rounded bg-red-600 px-2 py-1 text-xs font-black uppercase text-white" role="status">
+                          {delayLabel(delayMinutes)}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -224,11 +233,11 @@ export default function DisplayBoardCards() {
                   </div>
 
                   <div className="mx-4 mt-3 overflow-hidden rounded-md border border-slate-200">
-                    <div className="px-3 py-1 text-center text-lg font-black uppercase text-white" style={{ backgroundColor: state.muted ? '#64748b' : accent }}>
-                      {delayMinutes > 0 ? `DELAYED BY ${delayMinutes} MIN` : state.label}
+                    <div className="px-3 py-1 text-center text-base font-black uppercase text-white md:text-lg" style={{ backgroundColor: statusColor }}>
+                      {isDelayed ? delayLabel(delayMinutes) : state.label}
                     </div>
                     <div className="bg-slate-50 px-4 py-3 text-center">
-                      <div className="text-7xl font-black leading-none" style={{ color: state.muted ? '#64748b' : accent }}>{state.token}</div>
+                      <div className="text-7xl font-black leading-none" style={{ color: isDelayed ? '#dc2626' : state.muted ? '#64748b' : accent }}>{state.token}</div>
                       {state.note && <div className="mt-2 text-sm font-black text-slate-700">{state.note}</div>}
                       <div className="mt-3 border-t border-slate-200 pt-2 text-sm font-black uppercase text-slate-700">Next</div>
                       <div className="min-h-8 text-3xl font-black tracking-wide text-slate-950">{nextTokens || '--'}</div>

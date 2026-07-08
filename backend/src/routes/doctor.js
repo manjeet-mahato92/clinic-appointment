@@ -13,6 +13,8 @@ router.use(requireAuth, requireRole('doctor'));
 
 const did = (req) => req.user.id;
 const hid = (req) => req.user.hospitalId;
+const bodyHas = (body, key) => Object.prototype.hasOwnProperty.call(body || {}, key);
+const notesFromBody = (body, fallback) => (bodyHas(body, 'notes') ? (body.notes || null) : fallback);
 
 // Today's (or given date's) queue for this doctor
 router.get('/appointments', (req, res) => {
@@ -43,27 +45,28 @@ router.get('/patients/:patientId', (req, res) => {
 router.patch('/appointments/:id/complete', (req, res) => {
   const appt = db.prepare('SELECT * FROM appointments WHERE id = ? AND doctor_id = ?').get(req.params.id, did(req));
   if (!appt) return res.status(404).json({ error: 'Appointment not found' });
-  db.prepare(`UPDATE appointments SET status = 'completed', updated_at = datetime('now') WHERE id = ?`).run(req.params.id);
+  db.prepare(`UPDATE appointments SET status = 'completed', notes = ?, updated_at = datetime('now') WHERE id = ?`).run(notesFromBody(req.body, appt.notes), req.params.id);
   res.json({ message: 'Appointment closed' });
 });
 
 // Click Next — completes the current in-progress token (if any) and activates the next scheduled token
 router.post('/appointments/next', (req, res) => {
-  const date = req.body.date || new Date().toISOString().slice(0, 10);
+  const { date } = req.body;
+  const appointmentDate = date || new Date().toISOString().slice(0, 10);
 
   const current = db.prepare(
     `SELECT * FROM appointments WHERE doctor_id = ? AND appointment_date = ? AND status = 'in_progress'
      ORDER BY token_number ASC LIMIT 1`
-  ).get(did(req), date);
+  ).get(did(req), appointmentDate);
 
   if (current) {
-    db.prepare(`UPDATE appointments SET status = 'completed', updated_at = datetime('now') WHERE id = ?`).run(current.id);
+    db.prepare(`UPDATE appointments SET status = 'completed', notes = ?, updated_at = datetime('now') WHERE id = ?`).run(notesFromBody(req.body, current.notes), current.id);
   }
 
   const next = db.prepare(
     `SELECT * FROM appointments WHERE doctor_id = ? AND appointment_date = ? AND status = 'scheduled'
      ORDER BY token_number ASC LIMIT 1`
-  ).get(did(req), date);
+  ).get(did(req), appointmentDate);
 
   if (next) {
     db.prepare(`UPDATE appointments SET status = 'in_progress', updated_at = datetime('now') WHERE id = ?`).run(next.id);

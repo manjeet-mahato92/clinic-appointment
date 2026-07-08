@@ -20,6 +20,7 @@ export default function HospitalPatients() {
   const [editingPatient, setEditingPatient] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyAppointments, setHistoryAppointments] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -95,6 +96,25 @@ export default function HospitalPatients() {
     `https://wa.me/${phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(`Hi ${name}, this is regarding your clinic appointment.`)}`;
 
   const totalPatients = patients.length;
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const response = await api.get('/hospital/patients/export', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const disposition = response.headers['content-disposition'];
+      const filename = disposition?.match(/filename="?([^"]+)"?/i)?.[1];
+      link.setAttribute('download', filename || `patients-${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
   const whatsappCount = patients.filter((patient) => patient.whatsapp_available).length;
 
   const navItems = user.role === 'super_admin' ? superAdminNav : hospitalNav;
@@ -111,6 +131,7 @@ export default function HospitalPatients() {
           <p className="text-slate-soft">Manage patient records, appointments, and contact preferences in one place.</p>
         </div>
         <div className="flex flex-wrap gap-3">
+          <button className="btn-secondary" onClick={handleExport} disabled={exporting}>{exporting ? 'Exporting...' : 'Export CSV'}</button>
           <button className="btn-primary" onClick={() => openPatientModal(null)}>+ Add Patient</button>
           <button className="btn-secondary" onClick={() => navigate('/hospital')}>+ Add Appointment</button>
         </div>

@@ -12,7 +12,10 @@ export default function DoctorQueue() {
   const [appointments, setAppointments] = useState([]);
   const [patientView, setPatientView] = useState(null);
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
+  const [completionTarget, setCompletionTarget] = useState(null);
+  const [completionNotes, setCompletionNotes] = useState('');
   const [newDate, setNewDate] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   const load = () => api.get('/doctor/appointments', { params: { date } }).then((r) => { setAppointments(r.data); setLoading(false); });
@@ -21,14 +24,35 @@ export default function DoctorQueue() {
   const current = appointments.find((a) => a.status === 'in_progress');
   const upNext = appointments.filter((a) => a.status === 'scheduled').sort((a, b) => a.token_number - b.token_number);
 
+  const openCompletion = (appointment, mode = 'complete') => {
+    setCompletionTarget({ id: appointment.id, mode });
+    setCompletionNotes(appointment.notes || '');
+  };
+
   const clickNext = async () => {
+    if (current) {
+      openCompletion(current, 'next');
+      return;
+    }
     await api.post('/doctor/appointments/next', { date });
     load();
   };
 
-  const complete = async (id) => {
-    await api.patch(`/doctor/appointments/${id}/complete`);
-    load();
+  const submitCompletion = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      if (completionTarget.mode === 'next') {
+        await api.post('/doctor/appointments/next', { date, notes: completionNotes });
+      } else {
+        await api.patch(`/doctor/appointments/${completionTarget.id}/complete`, { notes: completionNotes });
+      }
+      setCompletionTarget(null);
+      setCompletionNotes('');
+      load();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not complete appointment');
+    }
   };
 
   const viewPatient = async (patientId) => {
@@ -63,7 +87,7 @@ export default function DoctorQueue() {
             <>
               <div className="text-5xl font-bold">#{current.token_number}</div>
               <div className="mt-2 text-white/80 text-lg">{current.patient_name}</div>
-              <button onClick={() => complete(current.id)} className="mt-6 btn bg-signal text-white hover:bg-[#2c7b61] text-sm">
+              <button onClick={() => openCompletion(current)} className="mt-6 btn bg-signal text-white hover:bg-[#2c7b61] text-sm">
                 Close Appointment ✓
               </button>
             </>
@@ -85,6 +109,8 @@ export default function DoctorQueue() {
           )}
         </div>
       </div>
+
+      {error && <div className="mb-4 text-sm text-danger">{error}</div>}
 
       <div className="card p-0 overflow-hidden">
         <div className="overflow-x-auto">
@@ -161,6 +187,18 @@ export default function DoctorQueue() {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal open={!!completionTarget} onClose={() => { setCompletionTarget(null); setCompletionNotes(''); }} title="Complete Appointment">
+        <form onSubmit={submitCompletion} className="space-y-4">
+          <div>
+            <label className="label">Clinical Notes</label>
+            <textarea rows={5} className="input resize-none" value={completionNotes} onChange={(e) => setCompletionNotes(e.target.value)} />
+          </div>
+          <button className="btn-primary w-full" type="submit">
+            {completionTarget?.mode === 'next' ? 'Save Notes & Next' : 'Complete Appointment'}
+          </button>
+        </form>
       </Modal>
 
       <Modal open={!!rescheduleTarget} onClose={() => setRescheduleTarget(null)} title="Reschedule Appointment">

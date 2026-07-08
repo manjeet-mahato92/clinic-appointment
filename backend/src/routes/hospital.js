@@ -124,6 +124,35 @@ const safeJsonParse = (jsonString, fallback = []) => {
   }
 };
 
+const csvCell = (value) => {
+  if (value === null || value === undefined) return '';
+  const stringValue = String(value);
+  return /[",\r\n]/.test(stringValue) ? `"${stringValue.replace(/"/g, '""')}"` : stringValue;
+};
+
+const patientExportColumns = [
+  ['First Name', 'first_name'],
+  ['Last Name', 'last_name'],
+  ['Contact Number', 'contact_number'],
+  ['Email', 'email'],
+  ['Age', 'age'],
+  ['Gender', 'gender'],
+  ['Address', 'address'],
+  ['District', 'district'],
+  ['State', 'state'],
+  ['Pincode', 'pincode'],
+  ['WhatsApp Available', 'whatsapp_available'],
+];
+
+const toCsv = (rows, columns) => {
+  const header = columns.map(([label]) => csvCell(label)).join(',');
+  const body = rows.map((row) => columns.map(([, key]) => csvCell(row[key])).join(','));
+  return [header, ...body].join('\r\n');
+};
+
+const bodyHas = (body, key) => Object.prototype.hasOwnProperty.call(body || {}, key);
+const notesFromBody = (body, fallback) => (bodyHas(body, 'notes') ? (body.notes || null) : fallback);
+
 // ---------- Manage Doctors ----------
 
 router.get('/doctors', (req, res) => {
@@ -358,6 +387,19 @@ router.get('/patients', (req, res) => {
   res.json(db.prepare(sql).all(...params));
 });
 
+router.get('/patients/export', (req, res) => {
+  const patients = db.prepare(
+    `SELECT first_name, last_name, contact_number, email, age, gender, address, district, state, pincode,
+            (CASE WHEN whatsapp_available = 1 THEN 'Yes' ELSE 'No' END) as whatsapp_available
+     FROM patients WHERE hospital_id = ? ORDER BY created_at DESC`
+  ).all(hid(req));
+
+  const csv = toCsv(patients, patientExportColumns);
+  res.header('Content-Type', 'text/csv; charset=utf-8');
+  res.attachment(`patients-${hid(req)}-${new Date().toISOString().slice(0, 10)}.csv`);
+  res.send(csv);
+});
+
 router.post('/patients', (req, res) => {
   const {
     first_name, last_name, contact_number, email, address, whatsapp_available,
@@ -371,7 +413,7 @@ router.post('/patients', (req, res) => {
   db.prepare(
     `INSERT INTO patients (id, hospital_id, first_name, last_name, patient_name, contact_number, email, address, whatsapp_available,
       adhar_card, age, gender, district, state, pincode)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id, hid(req), first_name, last_name, patient_name, contact_number, email || null, address || null, whatsapp_available ? 1 : 0,
     adhar_card || null, age || null, gender || null, district || null, state || null, pincode || null
@@ -587,7 +629,7 @@ router.patch('/appointments/:id/cancel', (req, res) => {
 // Click Next — completes the current in-progress token (if any) and activates the next scheduled token for this doctor/date
 router.post('/appointments/next', (req, res) => {
   const { doctor_id, date } = req.body;
-  if (!doctor_id) return res.status(400).json({ error: 'doctor_id is required' });
+  if (!doctor_id) return res.status(400).json({ error: 'Doctor ID is required' });
   const appointmentDate = date || new Date().toISOString().slice(0, 10);
 
   const doctor = db.prepare('SELECT id FROM doctors WHERE id = ? AND hospital_id = ?').get(doctor_id, hid(req));
@@ -599,7 +641,7 @@ router.post('/appointments/next', (req, res) => {
   ).get(doctor_id, appointmentDate);
 
   if (current) {
-    db.prepare(`UPDATE appointments SET status = 'completed', updated_at = datetime('now') WHERE id = ?`).run(current.id);
+    db.prepare(`UPDATE appointments SET status = 'completed', notes = ?, updated_at = datetime('now') WHERE id = ?`).run(notesFromBody(req.body, current.notes), current.id);
   }
 
   const next = db.prepare(
@@ -627,7 +669,11 @@ router.patch('/appointments/:id/status', (req, res) => {
   const appt = db.prepare('SELECT * FROM appointments WHERE id = ? AND hospital_id = ?').get(req.params.id, hid(req));
   if (!appt) return res.status(404).json({ error: 'Appointment not found' });
 
-  db.prepare(`UPDATE appointments SET status = ?, updated_at = datetime('now') WHERE id = ?`).run(status, req.params.id);
+  if (bodyHas(req.body, 'notes')) {
+    db.prepare(`UPDATE appointments SET status = ?, notes = ?, updated_at = datetime('now') WHERE id = ?`).run(status, req.body.notes || null, req.params.id);
+  } else {
+    db.prepare(`UPDATE appointments SET status = ?, updated_at = datetime('now') WHERE id = ?`).run(status, req.params.id);
+  }
   if (status === 'cancelled') renumberTokens(db, appt.doctor_id, appt.appointment_date);
   res.json({ message: `Appointment marked ${status}` });
 });

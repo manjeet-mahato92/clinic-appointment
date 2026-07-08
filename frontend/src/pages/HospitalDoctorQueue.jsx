@@ -13,6 +13,8 @@ export default function HospitalDoctorQueue() {
   const [date] = useState(todayStr());
   const [appointments, setAppointments] = useState([]);
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
+  const [completionTarget, setCompletionTarget] = useState(null);
+  const [completionNotes, setCompletionNotes] = useState('');
   const [newDate, setNewDate] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -24,8 +26,17 @@ export default function HospitalDoctorQueue() {
   const upNext = appointments.filter((a) => a.status === 'scheduled').sort((a, b) => a.token_number - b.token_number);
   const doctorLabel = appointments[0]?.doctor_name || 'Doctor';
 
+  const openCompletion = (appointment, mode = 'complete') => {
+    setCompletionTarget({ id: appointment.id, mode });
+    setCompletionNotes(appointment.notes || '');
+  };
+
   const clickNext = async () => {
     setError('');
+    if (current) {
+      openCompletion(current, 'next');
+      return;
+    }
     try {
       await api.post('/hospital/appointments/next', { doctor_id: doctorId, date });
       load();
@@ -34,10 +45,17 @@ export default function HospitalDoctorQueue() {
     }
   };
 
-  const complete = async (id) => {
+  const submitCompletion = async (e) => {
+    e.preventDefault();
     setError('');
     try {
-      await api.patch(`/hospital/appointments/${id}/status`, { status: 'completed' });
+      if (completionTarget.mode === 'next') {
+        await api.post('/hospital/appointments/next', { doctor_id: doctorId, date, notes: completionNotes });
+      } else {
+        await api.patch(`/hospital/appointments/${completionTarget.id}/status`, { status: 'completed', notes: completionNotes });
+      }
+      setCompletionTarget(null);
+      setCompletionNotes('');
       load();
     } catch (err) {
       setError(err.response?.data?.error || 'Could not close appointment');
@@ -76,7 +94,7 @@ export default function HospitalDoctorQueue() {
             <>
               <div className="text-5xl font-bold">#{current.token_number}</div>
               <div className="mt-2 text-white/80 text-lg">{current.patient_name}</div>
-              <button onClick={() => complete(current.id)} className="mt-6 btn bg-signal text-white hover:bg-[#2c7b61] text-sm">
+              <button onClick={() => openCompletion(current)} className="mt-6 btn bg-signal text-white hover:bg-[#2c7b61] text-sm">
                 Close Appointment ✓
               </button>
             </>
@@ -128,7 +146,7 @@ export default function HospitalDoctorQueue() {
                       </button>
                     )}
                     {a.status === 'scheduled' && (
-                      <button className="btn-sm bg-white text-danger border border-danger hover:bg-danger/10" onClick={() => complete(a.id)}>
+                      <button className="btn-sm bg-white text-danger border border-danger hover:bg-danger/10" onClick={() => openCompletion(a)}>
                         Close
                       </button>
                     )}
@@ -144,6 +162,18 @@ export default function HospitalDoctorQueue() {
           </table>
         </div>
       </div>
+
+      <Modal open={!!completionTarget} onClose={() => { setCompletionTarget(null); setCompletionNotes(''); }} title="Complete Appointment">
+        <form onSubmit={submitCompletion} className="space-y-4">
+          <div>
+            <label className="label">Clinical Notes</label>
+            <textarea rows={5} className="input resize-none" value={completionNotes} onChange={(e) => setCompletionNotes(e.target.value)} />
+          </div>
+          <button className="btn-primary w-full" type="submit">
+            {completionTarget?.mode === 'next' ? 'Save Notes & Next' : 'Complete Appointment'}
+          </button>
+        </form>
+      </Modal>
 
       <Modal open={!!rescheduleTarget} onClose={() => setRescheduleTarget(null)} title="Reschedule Appointment">
         <form onSubmit={reschedule} className="space-y-4">
