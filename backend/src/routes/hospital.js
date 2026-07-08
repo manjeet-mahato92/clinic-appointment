@@ -164,7 +164,7 @@ router.post('/doctors', (req, res) => {
   try {
     db.prepare(
       `INSERT INTO doctors (id, hospital_id, first_name, last_name, doctor_name, speciality, contact_number, email, age, gender, district, state, pincode, experience_years, certifications, password_hash, avg_minutes_per_patient)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       id, hid(req), first_name, last_name, doctor_name, speciality || null, contact_number || null, email, age || null, gender || null,
       district || null, state || null, pincode || null, experience_years || null,
