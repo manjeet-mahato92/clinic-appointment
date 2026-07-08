@@ -59,6 +59,71 @@ router.get('/billing', (req, res) => {
   res.json({ currentPlan, availablePlans });
 });
 
+router.post('/billing/request-cash-payment', (req, res) => {
+  const { planId } = req.body;
+  if (!planId) return res.status(400).json({ error: 'Plan ID is required.' });
+
+  const plan = db.prepare('SELECT price_monthly FROM subscription_plans WHERE id = ?').get(planId);
+  if (!plan) return res.status(404).json({ error: 'Subscription plan not found.' });
+
+  const hospitalId = hid(req);
+  const reference_number = `CASH-${hospitalId.slice(0, 4)}-${Date.now().toString().slice(-6)}`;
+  const id = uuid();
+
+  try {
+    db.prepare(
+      `INSERT INTO cash_payments (id, hospital_id, plan_id, amount, reference_number) VALUES (?, ?, ?, ?, ?)`
+    ).run(id, hospitalId, planId, plan.price_monthly, reference_number);
+
+    res.status(201).json({ reference_number, message: 'Cash payment request generated.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Could not generate payment reference.' });
+  }
+});
+
+// ---------- Invoices ----------
+
+router.get('/invoices', (req, res) => {
+  const hospitalId = hid(req);
+  const invoices = db.prepare(`
+    SELECT
+      cp.id,
+      cp.reference_number,
+      cp.amount,
+      cp.status,
+      cp.verified_at,
+      sp.name as plan_name
+    FROM cash_payments cp
+    JOIN subscription_plans sp ON sp.id = cp.plan_id
+    WHERE cp.hospital_id = ? AND cp.status = 'verified'
+    ORDER BY cp.verified_at DESC
+  `).all(hospitalId);
+  res.json(invoices);
+});
+
+router.get('/invoices/:id', (req, res) => {
+  const hospitalId = hid(req);
+  const invoice = db.prepare(`
+    SELECT cp.*, h.hospital_name, h.hospital_address, sp.name as plan_name
+    FROM cash_payments cp
+    JOIN hospitals h ON h.id = cp.hospital_id
+    JOIN subscription_plans sp ON sp.id = cp.plan_id
+    WHERE cp.id = ? AND cp.hospital_id = ? AND cp.status = 'verified'
+  `).get(req.params.id, hospitalId);
+  if (!invoice) return res.status(404).json({ error: 'Invoice not found.' });
+  res.json(invoice);
+});
+
+const safeJsonParse = (jsonString, fallback = []) => {
+  if (!jsonString) return fallback;
+  try {
+    const parsed = JSON.parse(jsonString);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch (e) {
+    return fallback;
+  }
+};
+
 // ---------- Manage Doctors ----------
 
 router.get('/doctors', (req, res) => {
@@ -77,8 +142,8 @@ router.get('/doctors', (req, res) => {
     return {
       ...doctor,
       schedule: {
-        is_available: schedule?.is_available === 1,
-        timeslots: schedule?.timeslots ? JSON.parse(schedule.timeslots) : [],
+        is_available: schedule?.is_available === 1, // Ensure boolean
+        timeslots: safeJsonParse(schedule?.timeslots),
         room_number: schedule?.room_number || '',
         delay_minutes: schedule?.delay_minutes || 0,
       }

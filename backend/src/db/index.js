@@ -35,6 +35,21 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS cash_payments (
+    id TEXT PRIMARY KEY,
+    hospital_id TEXT NOT NULL,
+    plan_id TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    reference_number TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'pending', -- pending, verified, rejected
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    verified_at TEXT,
+    FOREIGN KEY (hospital_id) REFERENCES hospitals(id) ON DELETE CASCADE,
+    FOREIGN KEY (plan_id) REFERENCES subscription_plans(id) ON DELETE CASCADE
+  );
+`);
+
 const hospitalColumns = db.prepare('PRAGMA table_info(hospitals)').all().map((row) => row.name);
 if (!hospitalColumns.includes('header_color')) {
   db.prepare('ALTER TABLE hospitals ADD COLUMN header_color TEXT').run();

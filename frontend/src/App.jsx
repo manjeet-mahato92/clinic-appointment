@@ -4,6 +4,7 @@ import SuperAdminEditHospital from './pages/SuperAdminEditHospital.jsx';
 import SuperAdminDoctors from './pages/SuperAdminDoctors.jsx';
 import SuperAdminPatients from './pages/SuperAdminPatients.jsx';
 import SuperAdminSubscriptions from './pages/SuperAdminSubscriptions.jsx';
+import SuperAdminCashPayments from './pages/SuperAdminCashPayments.jsx';
 
 import Login from './pages/Login.jsx';
 import PatientBooking from './pages/PatientBooking.jsx';
@@ -19,7 +20,10 @@ import HospitalDoctors from './pages/HospitalDoctors.jsx';
 import HospitalPatients from './pages/HospitalPatients.jsx';
 import HospitalBilling from './pages/HospitalBilling.jsx';
 import HospitalProfile from './pages/HospitalProfile.jsx';
+import HospitalPayment from './pages/HospitalPayment.jsx';
 import PrintableToken from './pages/PrintableToken.jsx';
+import HospitalInvoices from './pages/HospitalInvoices.jsx';
+import PrintableInvoice from './pages/PrintableInvoice.jsx';
 import HospitalDoctorQueue from './pages/HospitalDoctorQueue.jsx';
 
 import DoctorQueue from './pages/DoctorQueue.jsx';
@@ -28,6 +32,7 @@ import DoctorProfile from './pages/DoctorProfile.jsx';
 import DisplaySelectDoctor from './pages/DisplaySelectDoctor.jsx';
 import DisplayBoard from './pages/DisplayBoard.jsx';
 import DisplayBoardAll from './pages/DisplayBoardAll.jsx';
+import DisplayBoardCards from './pages/DisplayBoardCards.jsx';
 import SuperAdminLogin from './pages/SuperAdminLogin.jsx';
 
 export default function App() {
@@ -44,6 +49,7 @@ export default function App() {
       <Route path="/super-admin/doctors" element={<ProtectedRoute role="super_admin"><SuperAdminDoctors /></ProtectedRoute>} />
       <Route path="/super-admin/patients" element={<ProtectedRoute role="super_admin"><SuperAdminPatients /></ProtectedRoute>} />
       <Route path="/super-admin/subscriptions" element={<ProtectedRoute role="super_admin"><SuperAdminSubscriptions /></ProtectedRoute>} />
+      <Route path="/super-admin/cash-payments" element={<ProtectedRoute role="super_admin"><SuperAdminCashPayments /></ProtectedRoute>} />
       <Route path="/super-admin/hospitals/:hospitalId/doctors" element={<ProtectedRoute role="super_admin"><HospitalDoctors /></ProtectedRoute>} />
       <Route path="/super-admin/hospitals/:hospitalId/patients" element={<ProtectedRoute role="super_admin"><HospitalPatients /></ProtectedRoute>} />
       <Route path="/super-admin/banners" element={<ProtectedRoute role="super_admin"><SuperAdminBanners /></ProtectedRoute>} />
@@ -56,14 +62,17 @@ export default function App() {
       <Route path="/hospital/profile" element={<ProtectedRoute role="hospital"><HospitalProfile /></ProtectedRoute>} />
       <Route path="/hospital/appointments/:appointmentId/print" element={<ProtectedRoute role="hospital"><PrintableToken /></ProtectedRoute>} />
       <Route path="/hospital/billing" element={<ProtectedRoute role="hospital"><HospitalBilling /></ProtectedRoute>} />
+      <Route path="/hospital/payment/:planId" element={<ProtectedRoute role="hospital"><HospitalPayment /></ProtectedRoute>} />
+      <Route path="/hospital/invoices" element={<ProtectedRoute role="hospital"><HospitalInvoices /></ProtectedRoute>} />
+      <Route path="/hospital/invoices/:invoiceId/print" element={<ProtectedRoute role="hospital"><PrintableInvoice /></ProtectedRoute>} />
 
       <Route path="/doctor" element={<ProtectedRoute role="doctor"><DoctorQueue /></ProtectedRoute>} />
       <Route path="/doctor/profile" element={<ProtectedRoute role="doctor"><DoctorProfile /></ProtectedRoute>} />
 
       <Route path="/display/select-doctor" element={<ProtectedRoute role={["hospital", "display"]}><DisplaySelectDoctor /></ProtectedRoute>} />
       <Route path="/display/board-all" element={<ProtectedRoute role={["hospital", "display"]}><DisplayBoardAll /></ProtectedRoute>} />
+      <Route path="/display/board-cards" element={<ProtectedRoute role={["hospital", "display"]}><DisplayBoardCards /></ProtectedRoute>} />
       <Route path="/display/board/:doctorId" element={<ProtectedRoute role={["hospital", "display"]}><DisplayBoard /></ProtectedRoute>} />
-
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

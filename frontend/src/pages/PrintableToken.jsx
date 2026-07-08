@@ -37,9 +37,15 @@ export default function PrintableToken() {
         <h1 className="text-lg font-bold">{appointment.hospital_name}</h1>
         <p className="text-xs">{appointment.hospital_address}</p>
       </div>
-      <div className="text-center py-4">
-        <div className="text-xs uppercase tracking-wider">Token No.</div>
-        <div className="text-7xl font-bold">{appointment.token_number}</div>
+      <div className="flex items-center justify-between py-4">
+        <div className="text-center">
+          <div className="text-xs uppercase tracking-wider">Token No.</div>
+          <div className="text-7xl font-bold">{appointment.token_number}</div>
+        </div>
+        <div className="text-center">
+          <img src={qrCodeUrl} alt="QR Code for live queue status" className="mx-auto" />
+          <p className="text-xs mt-1">Scan for live status</p>
+        </div>
       </div>
       <div className="border-t-2 border-dashed border-black pt-3 space-y-2 text-sm">
         <div className="flex justify-between">
@@ -62,10 +68,6 @@ export default function PrintableToken() {
           <span className="font-semibold">Date:</span>
           <span>{new Date(appointment.appointment_date + 'T00:00:00').toLocaleDateString()}</span>
         </div>
-      </div>
-      <div className="text-center mt-4">
-        <img src={qrCodeUrl} alt="QR Code for live queue status" className="mx-auto" />
-        <p className="text-xs mt-2">Scan for live queue status</p>
       </div>
     </div>
   );

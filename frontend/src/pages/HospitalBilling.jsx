@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import Layout from '../components/Layout.jsx';
 import { hospitalNav } from '../navConfigs.js';
 import api from '../api/client.js';
@@ -6,6 +7,7 @@ import api from '../api/client.js';
 export default function HospitalBilling() {
   const [billingDetails, setBillingDetails] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.get('/hospital/billing')
@@ -16,8 +18,7 @@ export default function HospitalBilling() {
   const formatPrice = (price) => price != null ? `₹${price.toLocaleString('en-IN')}` : 'Free';
 
   const handleChoosePlan = (plan) => {
-    // In a real application, this would redirect to a payment gateway.
-    alert(`Proceeding to payment for the ${plan.name}.`);
+    navigate(`/hospital/payment/${plan.id}`);
   };
 
   if (loading) {
@@ -43,7 +44,7 @@ export default function HospitalBilling() {
           <p className="text-slate-soft">Your subscription is active. Next renewal date will be shown here.</p>
           <div className="mt-4 flex flex-wrap gap-3">
             <button className="btn-secondary">Manage Payment Methods</button>
-            <button className="btn-secondary">View Invoices</button>
+            <Link to="/hospital/invoices" className="btn-secondary">View Invoices</Link>
           </div>
         </div>
       ) : (

@@ -495,4 +495,31 @@ router.delete('/subscription-plans/:id', (req, res) => {
   res.json({ message: 'Subscription plan deleted' });
 });
 
+
+// ---------- Cash Payments ----------
+
+router.get('/cash-payments', (req, res) => {
+  const payments = db.prepare(`
+    SELECT
+      cp.*,
+      h.hospital_name,
+      sp.name as plan_name
+    FROM cash_payments cp
+    JOIN hospitals h ON h.id = cp.hospital_id
+    JOIN subscription_plans sp ON sp.id = cp.plan_id
+    ORDER BY cp.created_at DESC
+  `).all();
+  res.json(payments);
+});
+
+router.post('/cash-payments/:id/verify', (req, res) => {
+  const payment = db.prepare('SELECT * FROM cash_payments WHERE id = ? AND status = \'pending\'').get(req.params.id);
+  if (!payment) return res.status(404).json({ error: 'Pending payment not found.' });
+
+  db.prepare('UPDATE hospitals SET subscription_plan_id = ? WHERE id = ?').run(payment.plan_id, payment.hospital_id);
+  db.prepare('UPDATE cash_payments SET status = \'verified\', verified_at = CURRENT_TIMESTAMP WHERE id = ?').run(req.params.id);
+
+  res.json({ message: 'Payment verified and plan activated.' });
+});
+
 export default router;

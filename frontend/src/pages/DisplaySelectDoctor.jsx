@@ -69,16 +69,28 @@ export default function DisplaySelectDoctor() {
             </div>
           )}
           {!loading && !error && (
-            <button
-              type="button"
-              onClick={() => navigate('/display/board-all')}
-              className="rounded-2xl border border-green-700 bg-green-700 p-5 text-left text-white shadow-sm transition-colors hover:bg-green-800"
-            >
-              <div className="text-lg font-bold">All Doctors Display</div>
-              <div className="mt-1 text-sm text-white/80">
-                Current patient, upcoming token numbers, and room for every available doctor.
-              </div>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => navigate('/display/board-cards')}
+                className="rounded-2xl border border-blue-800 bg-blue-800 p-5 text-left text-white shadow-sm transition-colors hover:bg-blue-900"
+              >
+                <div className="text-lg font-bold">OPD Appointment Card Display</div>
+                <div className="mt-1 text-sm text-white/80">
+                  TV-style doctor cards with current token, next tokens, room, and schedule.
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/display/board-all')}
+                className="rounded-2xl border border-green-700 bg-green-700 p-5 text-left text-white shadow-sm transition-colors hover:bg-green-800"
+              >
+                <div className="text-lg font-bold">All Doctors Display</div>
+                <div className="mt-1 text-sm text-white/80">
+                  Current patient, upcoming token numbers, and room for every available doctor.
+                </div>
+              </button>
+            </>
           )}
           {!loading && !error && doctors.length > 0 && (
             <div className="flex items-center gap-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-400">

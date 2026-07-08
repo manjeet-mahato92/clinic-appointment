@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client.js';
 
+const formatDoctorName = (queue) => {
+  const name = queue.doctor_name || [queue.first_name, queue.last_name].filter(Boolean).join(' ');
+  if (!name) return 'Doctor';
+  return /^dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
+};
+
 export default function DisplayBoardAll() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -135,7 +141,7 @@ export default function DisplayBoardAll() {
                 >
                   <div className="px-6 py-5">
                     <div className="text-2xl font-black uppercase leading-tight text-slate-950 lg:text-4xl">
-                      Dr. {queue.first_name} {queue.last_name}
+                      {formatDoctorName(queue)}
                     </div>
                     {queue.speciality && (
                       <div className="mt-1 text-sm font-semibold uppercase tracking-wide text-slate-700 lg:text-base">
