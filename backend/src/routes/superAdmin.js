@@ -215,12 +215,26 @@ router.post('/hospitals/:hospitalId/doctors', (req, res) => {
   try {
     db.prepare(
       `INSERT INTO doctors (id, hospital_id, first_name, last_name, doctor_name, speciality, contact_number, email, age, gender, district, state, pincode, experience_years, certifications, password_hash, avg_minutes_per_patient)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(
-      id, hospitalId, first_name, last_name, doctor_name, speciality || null, contact_number || null, email, age || null, gender || null,
-      district || null, state || null, pincode || null, experience_years || null,
-      certifications ? JSON.stringify(certifications) : null, password_hash, avg_minutes_per_patient || 15
-    );
+       VALUES (@id, @hospital_id, @first_name, @last_name, @doctor_name, @speciality, @contact_number, @email, @age, @gender, @district, @state, @pincode, @experience_years, @certifications, @password_hash, @avg_minutes_per_patient)`
+    ).run({
+      id,
+      hospital_id: hospitalId,
+      first_name,
+      last_name,
+      doctor_name,
+      speciality: speciality || null,
+      contact_number: contact_number || null,
+      email,
+      age: age || null,
+      gender: gender || null,
+      district: district || null,
+      state: state || null,
+      pincode: pincode || null,
+      experience_years: experience_years || null,
+      certifications: certifications ? JSON.stringify(certifications) : null,
+      password_hash,
+      avg_minutes_per_patient: avg_minutes_per_patient || 15,
+    });
     res.status(201).json({ id, message: 'Doctor added' });
   } catch (err) {
     if (String(err.message).includes('UNIQUE')) return res.status(409).json({ error: 'Email already in use' });

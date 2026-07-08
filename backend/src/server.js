@@ -41,7 +41,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 app.use('/uploads', express.static(uploadsDir));
 
-app.get('/api/health', (req, res) => res.json({ ok: true, service: 'clinic-token-backend' }));
+app.get('/api/health', (req, res) => res.json({
+  ok: true,
+  service: 'clinic-token-backend',
+  build: 'doctor-insert-named-params-2026-07-08',
+  commit: process.env.RAILWAY_GIT_COMMIT_SHA || null,
+}));
 
 import apiRouter from './routes/index.js';
 app.use('/api/auth', authRoutes);
